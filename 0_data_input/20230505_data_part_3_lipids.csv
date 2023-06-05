@@ -1,0 +1,181 @@
+"","stream","site_type","analysis_date","category","sample_nr","lipidcontent_per_individual_ug","weight_per_individual_mg","lipidcontent_ug_mg","identified_species"
+"1","Hainbach","refuge","01.07.2020","Sample",1,450.409336929255,3.93,114.607973773347,"Gammarus fossarum"
+"2","Hainbach","refuge","01.07.2020","Sample",2,200.944810379849,2.4767,81.1340939071541,"Gammarus fossarum"
+"3","Hainbach","refuge","01.07.2020","Sample",3,148.684105625814,2.008,74.0458693355648,"Gammarus fossarum"
+"4","Hainbach","refuge","01.07.2020","Sample",5,315.275683764273,3.379,93.3044343782993,"Gammarus fossarum"
+"5","Modenbach","refuge","01.07.2020","Sample",7,422.333986697687,3.1018,136.157710586655,"Gammarus fossarum"
+"6","Modenbach","refuge","01.07.2020","Sample",8,271.9787649526,3.611,75.319513971919,"Gammarus fossarum"
+"7","Modenbach","refuge","01.07.2020","Sample",9,143.441109110049,3.944,36.3694495715134,"Gammarus fossarum"
+"8","Modenbach","refuge","01.07.2020","Sample",10,137.690744056923,2.3498,58.596792942771,"Gammarus fossarum"
+"9","Triefenbach","refuge","01.07.2020","Sample",11,189.782316944985,3.931,48.2783813139112,"Gammarus fossarum"
+"10","Triefenbach","edge","01.07.2020","Sample",16,297.009800791632,2.3837,124.600327554487,"Gammarus fossarum"
+"11","Hainbach","edge","01.07.2020","Sample",21,344.196615526601,3.7303,92.2704917906337,"Gammarus fossarum"
+"12","Hainbach","edge","01.07.2020","Sample",22,476.624216339707,3.0638,155.566360839385,"Gammarus fossarum"
+"13","Hainbach","agriculture","01.07.2020","Sample",26,751.627098218245,5.0928,147.586219411374,"Gammarus fossarum"
+"14","Modenbach","edge","01.07.2020","Sample",31,366.690707201743,4.239,86.5040592596703,"Gammarus fossarum"
+"15","Modenbach","edge","01.07.2020","Sample",32,446.519341220154,3.867,115.46918573058,"Gammarus fossarum"
+"16","Modenbach","agriculture","01.07.2020","Sample",36,428.253508986058,3.4376,124.579214855148,"Gammarus fossarum"
+"17","Modenbach","agriculture","01.07.2020","Sample",37,453.115387589845,4.719,96.0193658804503,"Gammarus fossarum"
+"18","Triefenbach","agriculture","01.07.2020","Sample",41,216.504615631342,1.521,142.343600020606,"Gammarus fossarum"
+"19","Triefenbach","agriculture","01.07.2020","Sample",42,111.475839277199,1.536,72.5754161960928,"Gammarus fossarum"
+"20","Otterbach","edge","01.07.2020","Sample",66,224.28453263301,4.583,48.9383662738404,"Gammarus fossarum"
+"21","Hainbach","refuge","01.07.2020","Sample",91,166.949988598456,1.6915,98.6993725086939,"Gammarus fossarum"
+"22","Hainbach","refuge","01.07.2020","Sample",92,564.740161266419,3.462,163.125407644835,"Gammarus fossarum"
+"23","Modenbach","refuge","01.07.2020","Sample",93,313.077001641043,3.053,102.547331032114,"Gammarus fossarum"
+"24","Triefenbach","refuge","02.03.2020","Sample",13,424.112216740441,2.781,152.50349397355,"Gammarus fossarum"
+"25","Hainbach","edge","02.03.2020","Sample",21,423.888137064884,3.021,140.313848747065,"Gammarus fossarum"
+"26","Hainbach","edge","02.03.2020","Sample",22,310.48906366767,2.2135,140.270640916047,"Gammarus fossarum"
+"27","Hainbach","edge","02.03.2020","Sample",25,679.372164438415,3.1161,218.02001361908,"Gammarus fossarum"
+"28","Modenbach","edge","02.03.2020","Sample",32,420.526482508461,3.067,137.113297198716,"Gammarus fossarum"
+"29","Modenbach","edge","02.03.2020","Sample",33,411.562112191646,2.5828,159.347263509233,"Gammarus fossarum"
+"30","Modenbach","edge","02.03.2020","Sample",35,640.825464857157,5.1628,124.123627654985,"Gammarus fossarum"
+"31","Modenbach","agriculture","02.03.2020","Sample",39,388.478947372936,2.4914,155.927971169999,"Gammarus fossarum"
+"32","Modenbach","agriculture","02.03.2020","Sample",40,427.697950972421,3.336,128.206819835858,"Gammarus fossarum"
+"33","Triefenbach","agriculture","02.03.2020","Sample",45,71.3649726791759,1.3407,53.229635771743,"Gammarus pulex"
+"34","Kropsbach","refuge","02.03.2020","Sample",47,383.996762214528,4.3389,88.5009477550826,"Gammarus fossarum"
+"35","Kropsbach","refuge","02.03.2020","Sample",48,769.463894733484,5.5355,139.005310221928,"Gammarus fossarum"
+"36","Kropsbach","edge","02.03.2020","Sample",51,261.185125533062,1.5117,172.775766046876,"Gammarus fossarum"
+"37","Otterbach","refuge","02.03.2020","Sample",61,186.781011917186,1.6885,110.619491807632,"Gammarus fossarum"
+"38","Otterbach","refuge","02.03.2020","Sample",62,139.269939778024,1.3806,100.8763869173,"Gammarus fossarum"
+"39","Otterbach","edge","02.03.2020","Sample",67,736.744055579731,3.0974,237.858867301521,"Gammarus fossarum"
+"40","Otterbach","edge","02.03.2020","Sample",70,315.643586460626,2.8206,111.906539906625,"Gammarus fossarum"
+"41","Otterbach","agriculture","02.03.2020","Sample",71,168.404078316119,2.0184,83.4344422890007,"Gammarus fossarum"
+"42","Otterbach","agriculture","02.03.2020","Sample",75,63.0729399969094,1.5425,40.8900745522914,"Gammarus pulex"
+"43","Russbach","refuge","02.03.2020","Sample",80,250.203809545244,1.8012,138.909510073975,"Gammarus fossarum"
+"44","Russbach","edge","02.03.2020","Sample",82,208.967790801024,2.3241,89.913424896099,"Gammarus fossarum"
+"45","Russbach","edge","02.03.2020","Sample",85,150.699482349601,1.7473,86.2470568016946,"Gammarus fossarum"
+"46","Triefenbach","refuge","04.03.2020","Sample",15,412.383803983736,2.5437,162.119669765985,"Gammarus fossarum"
+"47","Triefenbach","edge","04.03.2020","Sample",16,249.708023648786,2.6896,92.8420670913094,"Gammarus fossarum"
+"48","Triefenbach","edge","04.03.2020","Sample",18,360.453454844464,2.557,140.967326884812,"Gammarus fossarum"
+"49","Hainbach","agriculture","04.03.2020","Sample",27,983.420903240718,9.041,108.773465683079,"Gammarus fossarum"
+"50","Hainbach","agriculture","04.03.2020","Sample",28,792.222846800989,5.438,145.682759617688,"Gammarus fossarum"
+"51","Hainbach","agriculture","04.03.2020","Sample",29,1008.79595037121,6.5348,154.372888285977,"Gammarus fossarum"
+"52","Hainbach","agriculture","04.03.2020","Sample",30,652.364921576684,4.3206,150.989427759266,"Gammarus fossarum"
+"53","Modenbach","edge","04.03.2020","Sample",31,390.35272513549,2.5473,153.241756030106,"Gammarus fossarum"
+"54","Triefenbach","agriculture","04.03.2020","Sample",42,420.055317097386,3.6675,114.534510456002,"Gammarus fossarum"
+"55","Triefenbach","agriculture","04.03.2020","Sample",43,293.770151839397,3.2743,89.7199865129637,"Gammarus fossarum"
+"56","Triefenbach","agriculture","04.03.2020","Sample",44,177.123560341635,1.23,144.002894586695,"Gammarus fossarum"
+"57","Kropsbach","refuge","04.03.2020","Sample",46,490.082617890574,4.187,117.048630974582,"Gammarus fossarum"
+"58","Kropsbach","refuge","04.03.2020","Sample",49,635.644962141956,8.407,75.6090117927864,"Gammarus fossarum"
+"59","Kropsbach","refuge","04.03.2020","Sample",50,460.183288587788,7.481,61.5136062809501,"Gammarus fossarum"
+"60","Kropsbach","edge","04.03.2020","Sample",52,300.85156505272,1.6971,177.273917301703,"Gammarus fossarum"
+"61","Otterbach","refuge","04.03.2020","Sample",65,445.430364227873,3.0272,147.142694314176,"Gammarus fossarum"
+"62","Otterbach","edge","04.03.2020","Sample",66,425.956475432411,2.0258,210.265808782906,"Gammarus fossarum"
+"63","Otterbach","edge","04.03.2020","Sample",69,381.304278814412,2.3534,162.022724064932,"Gammarus fossarum"
+"64","Otterbach","agriculture","04.03.2020","Sample",73,397.827557952951,3.0265,131.448061441583,"Gammarus fossarum"
+"65","Russbach","refuge","04.03.2020","Sample",76,111.227094577786,1.444,77.0270738073311,"Gammarus fossarum"
+"66","Russbach","edge","04.03.2020","Sample",83,73.6562816672294,1.2478,59.0289162263418,"Gammarus fossarum"
+"67","Russbach","edge","04.03.2020","Sample",84,72.8694601624809,1.2811,56.8803841717905,"Gammarus fossarum"
+"68","Russbach","agriculture","04.03.2020","Sample",86,46.1174621210378,1.3287,34.7087093557897,"Gammarus pulex"
+"69","Russbach","agriculture","04.03.2020","Sample",87,121.062407645962,1.5809,76.5781565222103,"Gammarus pulex"
+"70","Triefenbach","refuge","06.03.2020","Sample",11,211.752296242351,1.9277,109.847121565778,"Gammarus fossarum"
+"71","Triefenbach","refuge","06.03.2020","Sample",12,553.448850590231,3.7051,149.374875331363,"Gammarus fossarum"
+"72","Triefenbach","refuge","06.03.2020","Sample",14,233.005180220023,2.4705,94.3149889577103,"Gammarus fossarum"
+"73","Triefenbach","edge","06.03.2020","Sample",17,241.877730693103,2.1655,111.696019715125,"Gammarus fossarum"
+"74","Triefenbach","edge","06.03.2020","Sample",19,440.16898431516,3.1611,139.245510839632,"Gammarus fossarum"
+"75","Triefenbach","edge","06.03.2020","Sample",20,270.97145830483,2.5982,104.291993805261,"Gammarus fossarum"
+"76","Hainbach","edge","06.03.2020","Sample",24,295.113068609122,2.6003,113.491931165297,"Gammarus fossarum"
+"77","Hainbach","agriculture","06.03.2020","Sample",26,390.02877723314,2.7033,144.278761969866,"Gammarus fossarum"
+"78","Modenbach","agriculture","06.03.2020","Sample",37,217.942462994647,2.3785,91.630213577737,"Gammarus fossarum"
+"79","Modenbach","agriculture","06.03.2020","Sample",38,239.401658627384,2.4441,97.9508443301763,"Gammarus fossarum"
+"80","Kropsbach","edge","06.03.2020","Sample",53,356.601931244097,3.711,96.0932177968464,"Gammarus fossarum"
+"81","Kropsbach","edge","06.03.2020","Sample",54,129.423263728762,3.1933,40.5296288255916,"Gammarus fossarum"
+"82","Kropsbach","edge","06.03.2020","Sample",55,291.398973922544,3.1262,93.2118782939493,"Gammarus fossarum"
+"83","Otterbach","refuge","06.03.2020","Sample",63,278.193303008764,2.36,117.878518224053,"Gammarus fossarum"
+"84","Otterbach","refuge","06.03.2020","Sample",64,223.513603992821,1.9972,111.913480869628,"Gammarus fossarum"
+"85","Otterbach","agriculture","06.03.2020","Sample",72,71.6484792732854,1.3024,55.0126530046724,"Gammarus fossarum"
+"86","Otterbach","agriculture","06.03.2020","Sample",74,172.341654994235,2.6519,64.9879916264696,"Gammarus fossarum"
+"87","Russbach","refuge","06.03.2020","Sample",77,84.6478075812292,1.34,63.1700056576338,"Gammarus fossarum"
+"88","Russbach","refuge","06.03.2020","Sample",78,106.313331376108,1.4101,75.3941786937863,"Gammarus fossarum"
+"89","Russbach","refuge","06.03.2020","Sample",79,324.206794157464,3.798,85.3625050440927,"Gammarus fossarum"
+"90","Russbach","edge","06.03.2020","Sample",81,69.1724216512599,1.4438,47.9099748242553,"Gammarus fossarum"
+"91","Hainbach","refuge","09.12.2019","Sample",2,993.706168451194,5.2824,188.116418380129,"Gammarus fossarum"
+"92","Hainbach","refuge","09.12.2019","Sample",3,152.082006730282,1.5892,95.6972103764674,"Gammarus fossarum"
+"93","Hainbach","refuge","09.12.2019","Sample",4,175.535137696881,1.3908,126.21163193621,"Gammarus fossarum"
+"94","Hainbach","refuge","09.12.2019","Sample",5,1139.31087438086,6.974,163.365482417675,"Gammarus fossarum"
+"95","Modenbach","refuge","09.12.2019","Sample",6,337.26375481674,4.164,80.9951380443659,"Gammarus fossarum"
+"96","Modenbach","refuge","09.12.2019","Sample",7,312.833467674678,2.8577,109.470366964579,"Gammarus fossarum"
+"97","Modenbach","refuge","09.12.2019","Sample",8,641.909734089917,6.414,100.079472106317,"Gammarus fossarum"
+"98","Modenbach","refuge","09.12.2019","Sample",10,76.8366741561625,1.2353,62.2008209796507,"Gammarus fossarum"
+"99","Modenbach","refuge","09.12.2019","Sample",9,264.950052009048,3.4259,77.3373571934523,"Gammarus fossarum"
+"100","Hainbach","refuge","20.01.2020","Sample",1,655.664453147378,3.337,196.483204419352,"Gammarus fossarum"
+"101","Modenbach","refuge","20.01.2020","Sample",9,537.834363241897,4.711,114.165647047739,"Gammarus fossarum"
+"102","Triefenbach","edge","20.01.2020","Sample",17,245.96151861402,1.6311,150.794873774765,"Gammarus fossarum"
+"103","Triefenbach","edge","20.01.2020","Sample",19,252.447584790742,5.411,46.6545157624731,NA
+"104","Hainbach","edge","20.01.2020","Sample",24,84.8909773208485,2.944,28.8352504486578,"Gammarus fossarum"
+"105","Modenbach","agriculture","20.01.2020","Sample",38,751.874399335637,5.741,130.965754979209,NA
+"106","Triefenbach","agriculture","20.01.2020","Sample",41,273.887639377245,2.2882,119.695673182958,NA
+"107","Kropsbach","agriculture","20.01.2020","Sample",58,181.28106849203,2.258,80.2839098724669,NA
+"108","Otterbach","edge","20.01.2020","Sample",69,518.736510529782,4.6071,112.595018673305,"Gammarus fossarum"
+"109","Russbach","edge","20.01.2020","Sample",83,305.957593814177,4.8585,62.9736737293767,"Gammarus fossarum"
+"110","Hainbach","refuge","22.01.2020","Sample",4,297.150990189875,1.5837,187.630858236961,"Gammarus fossarum"
+"111","Hainbach","refuge","22.01.2020","Sample",5,234.498636269999,1.7383,134.901131145371,"Gammarus fossarum"
+"112","Modenbach","refuge","22.01.2020","Sample",10,254.66756479851,2.0555,123.895677352717,"Gammarus fossarum"
+"113","Triefenbach","refuge","22.01.2020","Sample",11,537.675945896381,2.7488,195.603880200953,NA
+"114","Triefenbach","refuge","22.01.2020","Sample",13,483.391555656837,3.822,126.47607421686,NA
+"115","Hainbach","edge","22.01.2020","Sample",21,641.309793901778,3.4327,186.823722988254,NA
+"116","Modenbach","edge","22.01.2020","Sample",34,658.260258356097,3.541,185.896712328748,NA
+"117","Triefenbach","agriculture","22.01.2020","Sample",42,560.634144156587,4.093,136.973893026286,"Gammarus fossarum"
+"118","Triefenbach","agriculture","22.01.2020","Sample",45,1366.53226150602,15.537,87.9534183887506,NA
+"119","Kropsbach","refuge","22.01.2020","Sample",47,349.718881991124,2.4987,139.960332169178,NA
+"120","Kropsbach","edge","22.01.2020","Sample",53,1146.17610559032,8.788,130.425137185972,NA
+"121","Otterbach","edge","22.01.2020","Sample",68,584.021536759291,4.963,117.675103114909,"Gammarus fossarum"
+"122","Otterbach","edge","22.01.2020","Sample",70,362.378111077848,2.4172,149.916478188751,"Gammarus fossarum"
+"123","Otterbach","agriculture","22.01.2020","Sample",74,192.229775865456,2.5105,76.5703150230854,NA
+"124","Russbach","refuge","22.01.2020","Sample",77,201.241406613086,3.671,54.8192336183836,NA
+"125","Russbach","refuge","22.01.2020","Sample",79,453.138162864071,2.746,165.017539280434,NA
+"126","Russbach","agriculture","22.01.2020","Sample",87,1070.00631842277,10.619,100.763378700703,NA
+"127","Hainbach","refuge","24.01.2020","Sample",3,538.09140516703,2.4032,223.906210538877,"Gammarus fossarum"
+"128","Modenbach","refuge","24.01.2020","Sample",7,303.23880590298,5.175,58.5968707058899,"Gammarus fossarum"
+"129","Triefenbach","refuge","24.01.2020","Sample",15,361.563134650216,4.1262,87.6261777544025,NA
+"130","Hainbach","edge","24.01.2020","Sample",22,327.929449247821,7.154,45.8386146558318,"Gammarus fossarum"
+"131","Hainbach","edge","24.01.2020","Sample",25,250.358084878988,5.252,47.6690946075759,"Gammarus fossarum"
+"132","Modenbach","edge","24.01.2020","Sample",32,687.596107870486,9.305,73.8953366867798,NA
+"133","Modenbach","edge","24.01.2020","Sample",35,354.758600694358,5.986,59.264717790571,NA
+"134","Modenbach","agriculture","24.01.2020","Sample",36,226.056276211934,5.668,39.8828998256765,NA
+"135","Triefenbach","agriculture","24.01.2020","Sample",44,394.419177915056,12.871,30.6440197276868,NA
+"136","Kropsbach","edge","24.01.2020","Sample",51,279.714668535644,4.272,65.4762800879316,NA
+"137","Otterbach","refuge","24.01.2020","Sample",65,137.792141925599,3.085,44.6651999758831,NA
+"138","Otterbach","agriculture","24.01.2020","Sample",75,506.207480675036,9.613,52.6586373322621,NA
+"139","Russbach","refuge","24.01.2020","Sample",80,361.174299972429,3.201,112.831708832374,NA
+"140","Russbach","edge","24.01.2020","Sample",85,179.008001477261,4.0188,44.5426499147162,"Gammarus fossarum"
+"141","Russbach","agriculture","24.01.2020","Sample",88,1096.64402402067,12.464,87.9849184868958,NA
+"142","Russbach","agriculture","24.01.2020","Sample",90,377.310708719483,9.188,41.065597379134,NA
+"143","Triefenbach","edge","27.01.2020","Sample",18,343.662418905316,2.581,133.150879079936,NA
+"144","Triefenbach","edge","27.01.2020","Sample",20,309.907035024209,2.4036,128.934529465888,"Gammarus fossarum"
+"145","Hainbach","agriculture","27.01.2020","Sample",27,609.541029091792,9.532,63.9468137947746,"Gammarus fossarum"
+"146","Hainbach","agriculture","27.01.2020","Sample",30,805.278468709228,4.374,184.105731300692,"Gammarus fossarum"
+"147","Modenbach","agriculture","27.01.2020","Sample",37,176.638954513084,1.778,99.3469935394175,NA
+"148","Triefenbach","agriculture","27.01.2020","Sample",43,358.348230157806,3.291,108.887338243028,NA
+"149","Kropsbach","refuge","27.01.2020","Sample",46,473.642646601663,5.648,83.8602419620508,NA
+"150","Kropsbach","refuge","27.01.2020","Sample",49,444.709412508985,5.954,74.6908653861245,NA
+"151","Kropsbach","refuge","27.01.2020","Sample",50,817.772399273656,5.894,138.746589629056,NA
+"152","Kropsbach","edge","27.01.2020","Sample",52,418.18735085048,3.3025,126.627509720055,NA
+"153","Kropsbach","agriculture","27.01.2020","Sample",56,765.604925650522,9.701,78.9202067467809,NA
+"154","Kropsbach","agriculture","27.01.2020","Sample",57,178.173284365374,2.868,62.1245761385544,NA
+"155","Kropsbach","agriculture","27.01.2020","Sample",59,366.458267831559,5.322,68.8572468680118,NA
+"156","Kropsbach","agriculture","27.01.2020","Sample",60,625.541942015828,8.374,74.7004946281142,NA
+"157","Otterbach","agriculture","27.01.2020","Sample",71,726.808163800242,7.887,92.1526770381948,NA
+"158","Russbach","refuge","27.01.2020","Sample",76,531.728209261303,7.172,74.1394602985643,NA
+"159","Russbach","refuge","27.01.2020","Sample",78,213.243835675302,3.253,65.5529774593611,NA
+"160","Russbach","edge","27.01.2020","Sample",82,141.130012598944,1.8534,76.1465482890599,"Gammarus fossarum"
+"161","Russbach","edge","27.01.2020","Sample",84,220.477127211175,3.459,63.7401350711694,"Gammarus fossarum"
+"162","Russbach","agriculture","27.01.2020","Sample",86,236.697268315956,2.52,93.9274874269665,NA
+"163","Hainbach","refuge","29.01.2020","Sample",2,634.569713334358,3.8447,165.050514561437,"Gammarus fossarum"
+"164","Modenbach","refuge","29.01.2020","Sample",8,231.970795454634,3.546,65.4175960108952,"Gammarus fossarum"
+"165","Triefenbach","refuge","29.01.2020","Sample",14,319.065991120032,3.981,80.1471969655946,NA
+"166","Hainbach","edge","29.01.2020","Sample",23,174.868663817402,1.3712,127.529655642796,"Gammarus fossarum"
+"167","Hainbach","agriculture","29.01.2020","Sample",29,30.8636169138307,0.3494,88.3331909382677,"Gammarus fossarum"
+"168","Modenbach","edge","29.01.2020","Sample",33,202.93909304651,1.3174,154.045159440193,NA
+"169","Modenbach","agriculture","29.01.2020","Sample",39,595.155771091006,6.753,88.1320555443516,NA
+"170","Modenbach","agriculture","29.01.2020","Sample",40,285.035419392572,2.652,107.479419077139,NA
+"171","Kropsbach","edge","29.01.2020","Sample",54,577.659848637768,4.5655,126.527181828445,NA
+"172","Otterbach","refuge","29.01.2020","Sample",61,358.672200304026,3.03,118.373663466675,NA
+"173","Otterbach","refuge","29.01.2020","Sample",62,775.498569938165,8.025,96.6353358178398,NA
+"174","Otterbach","refuge","29.01.2020","Sample",63,301.954571785981,5.714,52.8446922971616,NA
+"175","Otterbach","refuge","29.01.2020","Sample",64,345.02151860944,4.368,78.9884429050915,NA
+"176","Otterbach","edge","29.01.2020","Sample",66,679.943826915527,5.552,122.468268536658,NA
+"177","Otterbach","edge","29.01.2020","Sample",67,350.597127226509,4.45,78.785871286856,NA
+"178","Otterbach","agriculture","29.01.2020","Sample",72,315.605253480568,4.046,78.0042643303429,NA
+"179","Otterbach","agriculture","29.01.2020","Sample",73,376.552654715916,4.828,77.993507604788,"Gammarus fossarum"
+"180","Russbach","edge","29.01.2020","Sample",81,195.82535274957,2.9023,67.472471057289,"Gammarus fossarum"

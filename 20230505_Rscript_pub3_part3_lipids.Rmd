@@ -1,0 +1,736 @@
+---
+title: "Population structure and insecticide response of Gammarus spp. in agricultural and upstream forested sites of small streams "
+author: "Schneeweiss A., Schreiner V.C., Liess M., Roeder N., Schwenk K., Schaefer R.B."
+date: "01 November 2022"
+output:
+  html_document:
+    figure_caption: yes
+    highlight: tango
+    number_sections: no 
+    toc: yes
+    toc_float: 
+         toc_collapsed: true
+    toc_depth: 4
+  pdf_document:
+    toc: yes
+    toc_float: 
+         toc_collapsed: true
+    toc_depth: '4'
+  word_document:
+    toc: yes
+editor_options:
+  chunk_output_type: console
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+R script written by Anke Schneeweiss
+
+Internally verified by Dr. Verena C. Schreiner
+
+Institute for Environmental Sciences
+RPTU Kaiserslautern-Landau 
+Fortstrasse 7  
+76829 Landau  
+GERMANY  
+Corresponding mail address: schneeweiss'@'uni-landau.de
+
+```{r, include=FALSE}
+#Required packages
+require(plyr) 
+require(dplyr) 
+require(tidyr) 
+require(stringr)
+require(data.table) 
+require(reshape) 
+require(ggplot2) 
+require(vegan) 
+require(EnvStats)
+require(ggpubr)
+require(scales)
+require(gridExtra)
+require(ggpmisc)
+require(reactable) 
+require(kableExtra) 
+require(qwraps2)
+require(doBy) 
+require(knitr)
+require(tidyselect)
+require(janitor)
+require(lme4)
+require(beanplot)
+require(lmerTest)
+require(car)
+require(performance)
+require(sjPlot)
+require(DHARMa)
+require(multcomp)
+require(emmeans)
+require(DAAG) 
+require(effects) 
+require(pbkrtest)
+library(ggeffects)
+#source(file = ".../HighstatLibV10.R") #download file "GLMGLMM_RCode.zip" on https://www.highstat.com/index.php/books2?view=article&id=21&catid=18 and read in "HighstatLibV10.R" from local source TODO
+library('RVAideMemoire')
+```
+
+
+```{r, include=FALSE}
+#########Set the working directory ##########
+path<-getwd()
+#Set data input path
+Inpath<-paste(path,"0_data_input" ,sep="/")
+#set analysis output path
+Outpath<-paste(path,"1_analysis_output" ,sep="/")
+```
+
+
+# 0. Some general definitions
+We define a fixed color scheme for the site types.
+```{r}
+#group color scheme for site_types in all plots
+group.color <- c("agriculture"= "peru", "edge" ="darkkhaki" , "refuge" = "darkgreen")
+```
+Rounds 0.5 up to 1.
+```{r}
+round2 <- function(x, digits = 0) {  
+  posneg <- sign(x)
+  z <- abs(x) * 10^digits
+  z <- z + 0.5
+  z <- trunc(z)
+  z <- z / 10^digits
+  z * posneg
+}
+```
+
+
+# 1. Hypothesis 3: Estimating energy reserves
+## 1.1 Load and prepare data
+```{r}
+df4 <- read.csv(file=paste(Inpath,"20230505_data_part_3_lipids.csv", sep="/"),header=TRUE, sep=",", na.strings =c("na","NA",""),stringsAsFactors = FALSE)
+df5<-read.csv(file=paste(Inpath,"20230505_data_4_gammarus_abundance.csv", sep="/"),header=TRUE, sep=";", na.strings ="na",stringsAsFactors = FALSE)
+
+str(df4)
+str(df5)
+##renaming
+df5$site_type=tolower(df5$site_type)
+df5 <- unite(df5,"Sampling_site",c("stream","site_type"),sep="_",remove = F)
+```
+Data set:
+df1: data of lipid analysis from two separate runs for 18 sites. 
+Run 1: All Species (G.fossarum, G.pulex and G.roeseli) can occur. 
+Run 2: Only G.fossarum. 0-5 organism replicates per sampling site, according to the availability of G.fossarum. At some sampling sites (e.g. Krops_down, Russ_down) G.fossarum does not occur. Therefore, we have less replicates for the agricultural site type.
+df2: data for the relative abundance of Gammarus fossarum at the 18 sampling site (high abundance: >=80% Gammarus fossarum; low: <=50% Gammarus fossarum)
+
+a) Subset two individual dataframes, one for run 1 and one for run 2
+```{r}
+df_energy_reserves<-df4
+df_run1<-subset(df_energy_reserves,analysis_date=="20.01.2020"|analysis_date=="22.01.2020"|analysis_date=="24.01.2020"|analysis_date=="27.01.2020"|analysis_date=="29.01.2020")
+df_run1$run<-"use_for_1"
+df_run1$identified_species<-"Gammarus sp"
+
+df_run2<-subset(df_energy_reserves,analysis_date=="02.03.2020"|analysis_date=="04.03.2020"|analysis_date=="06.03.2020"|analysis_date=="01.07.2020")
+df_run2 <- subset(df_run2,identified_species=="Gammarus fossarum")# Select only Gammarus fossarum individuals - species identification according to genetic CO1 results
+df_run2$run<-"use_for_2"
+str(df_run1)
+str(df_run2)
+#df_complete<-rbind(df_run1,df_run2)
+```
+
+## 1.2 Run 1
+### 1.2.1 Weight
+To avoid growth effects, we normalised the lipid content to the gammarids' dry weight (µg/mg gammarid) (Zubrod et al., 2011). Therefore, we measured and analysed the individuals dry weight first: five individuals  per sampling site were freeze-dried for 24 h and subsequently weighed to the nearest 0.001 mg.
+#### 1.2.1.1 Statistics ~ Gammarus abundance
+```{r}
+#statistics for the following dataframe
+df_statistics<-df_run1
+str(df_statistics)
+
+#add info "abundance" of Gammarus abundance
+df_statistics <- unite(df_statistics,"Sampling_site",c("stream","site_type"),sep="_",remove = F)
+df_statistics<-join(df_statistics,df5[,c("Sampling_site","Gammarus_fossarum","abundance")],by = "Sampling_site")
+
+#change variables to factor
+df_statistics$site_type  	<- factor(df_statistics$site_type) 
+df_statistics$stream  	<- factor(df_statistics$stream)
+df_statistics <-  unite(df_statistics,"replicate",c("stream","site_type"),sep="_",remove = F)
+df_statistics$replicate  	<- factor(df_statistics$replicate)
+df_statistics$fGFossarumAbundance	<- factor(df_statistics$abundance) #"abundance" describes the relative abundance of Gammarus fossarum at the respective sampling site (high abundance: >=80% Gammarus fossarum; low: <=50% Gammarus fossarum)
+```
+
+a) Data exploration
+```{r}
+#Observe number of observation - Balanced design
+df_statistics %>% count(replicate,sort = TRUE)
+str(df_statistics)
+#outlier for response and continuous covariates
+MyVar <- c("weight_per_individual_mg")
+MyVar2 <- c("weight_per_individual_mg","site_type","fGFossarumAbundance")
+Mydotplot(df_statistics[,MyVar])
+#outlier
+boxplot(df_statistics$weight_per_individual_mg, main="outliers", boxwex=0.1)
+# boxplot(weight_per_individual_mg~fGFossarumAbundance, data=df_statistics, main="outliers", boxwex=0.1)
+#variances
+p_vh<-beanplot(weight_per_individual_mg~site_type, data=df_statistics)
+leveneTest(weight_per_individual_mg~site_type, data=df_statistics)
+p_vh<-beanplot(weight_per_individual_mg~fGFossarumAbundance, data=df_statistics)
+leveneTest(weight_per_individual_mg~fGFossarumAbundance, data=df_statistics)
+#distribution
+hist(df_statistics$weight_per_individual_mg)
+byf.hist(weight_per_individual_mg~site_type, data=df_statistics)
+byf.hist(weight_per_individual_mg~fGFossarumAbundance, data=df_statistics)
+shapiro.test(df_statistics$weight_per_individual_mg)
+#Inspect for collinearity with multi-panel scatterplots (only covariates): 
+pairs(df_statistics[,MyVar2], lower.panel = panel.cor)
+#Inspect for collinearity with VIF, cut-off level in Zuur et al., 2013 VIF = 3
+corvif(df_statistics[ ,MyVar2]) # calculate variance inflation factors(VIFs) for fixed covariates
+```
+Data are not normally distributed, and variances not homogen and there is one outlier. --> However, the model validation based on plots indicates only minor deviation, acceptable
+
+b) Model
+```{r}
+lmm_run1 <- lmer(weight_per_individual_mg~ fGFossarumAbundance +(1|stream)+(1|replicate), data = df_statistics,REML = T)
+Anova(lmm_run1)
+drop1(lmm_run1)
+#from help('isSingular'): "Complex mixed-effect models (i.e., those with a large number of variance-covariance parameters) frequently result in singular fits, i.e. estimated variance-covariance matrices with less than full rank. Less technically, this means that some "dimensions" of the variance-covariance matrix have been estimated as exactly zero." 
+#--> here the random factor stream. We decided to keep it anyway, because it is part of the study design and removing it has negligible influence on parameter estimates.
+```
+
+
+c) Model diagnosis
+```{r}
+lmm<-lmm_run1
+#resid vs fitted values (homogeneity of variances & linear relationship)
+plot(lmm)
+check_model(lmm)
+check_homogeneity(lmm)
+#qqplot (normal distribution of error, standardized residuals)
+qqnorm(resid(lmm, type = "pearson"))
+qqline(resid(lmm, type = "pearson"))
+check_normality(lmm) 
+#Cook's distance values
+plot(cooks.distance(lmm),ylab="Cook distance values")
+#general model check
+check_singularity(lmm)
+check_convergence(lmm) 
+```
+Model validation based on plots indicates only minor deviation, acceptable.
+
+d) Model output
+```{r}
+summary(lmm)
+tab_model(lmm,show.ci = F, show.se = TRUE, p.val = "kr")
+model_performance(lmm) # random factor shrinked to zero
+#significance of effects
+#F statistics to test fixed effects, Kenward-Roger Approximation is used, it performs well in the range of small sample settings ( see: Kenward MG, Roger JH. Small sample inference for fixed effects from restricted maximum likelihood. Biometrics. 1997 Sep;53(3):983-97. PMID: 9333350.)
+anova(lmm,ddf="Kenward-Roger")# no predictor can be droped
+emmeans(lmm, list(pairwise ~ fGFossarumAbundance), adjust = "tukey")
+model1<-lmm
+```
+
+e) Plot
+```{r}
+fit<-lmm
+mydf<-ggeffect(fit,c("fGFossarumAbundance"))
+
+p_weight_gf <-ggplot(mydf,mapping=aes(x, predicted))+
+    
+  geom_point(df_statistics,mapping=aes(x=fGFossarumAbundance,y=weight_per_individual_mg,colour = fGFossarumAbundance),alpha=0.3,size=2,position=position_jitter(h=0.0,w=0.1))+
+  geom_pointrange(aes(ymin = conf.low, ymax = conf.high))+
+  geom_signif(comparisons=list(c("low", "high")), annotations="**",
+              y_position = 17, tip_length = 0, vjust=0.4) +
+  #) 
+      labs(title="",x=expression(paste("Abundance of" ,phantom(x), italic("G. fossarum"))), y ="Dry weight per gammarid [mg]") +
+   scale_x_discrete(name=expression(paste("Abundance of" ,phantom(x), italic("G. fossarum"))),breaks = c("low","high"), labels=c("Low (≤50%)", "High (≥80%)"))+
+  scale_fill_brewer(type = "seq", palette="Set1",name=expression(paste("Abundance of" ,phantom(x), italic("G. fossarum"))),breaks = c("low","high"), labels=c("Low (≤50%, n=4)", "High (≥80%, n=14)"))+
+  scale_colour_brewer(type = "seq", palette="Set1",name=expression(paste("Abundance of" ,phantom(x), italic("G. fossarum"))),breaks = c("low","high"), labels=c("Low (≤50%, n=4)", "High (≥80%, n=14)"))+
+  scale_y_continuous(breaks = c(0,5,10,15,20), labels=c(0,5,10,15,20),limits = c(0,20))+
+  theme_light()+
+  theme(  axis.title = element_text(colour = "grey30"),
+          axis.text = element_text(colour = "grey50"),
+          panel.border = element_blank(),
+          axis.line = element_line(colour = "grey80"),
+          axis.text.y = element_blank(),
+          axis.line.y = element_blank(),
+          panel.grid.major = element_line(colour = "grey90"),
+          legend.text = element_text(colour = "grey50"),
+          legend.title = element_text(colour = "grey30"),
+          legend.position="none")
+p_weight_gf
+```
+
+#### 1.2.1.2 Statistics ~ Site type 
+b) Model
+```{r}
+lmm_run1 <- lmer(weight_per_individual_mg  ~ site_type +(1|stream)+(1|replicate), data = df_statistics,REML = T)
+Anova(lmm_run1)
+drop1(lmm_run1)
+#from help('isSingular'): "Complex mixed-effect models (i.e., those with a large number of variance-covariance parameters) frequently result in singular fits, i.e. estimated variance-covariance matrices with less than full rank. Less technically, this means that some "dimensions" of the variance-covariance matrix have been estimated as exactly zero." 
+#--> here the random factor stream. We decided to keep it anyway, because it is part of the study design and removing it has negligible influence on parameter estimates.
+```
+
+
+c) Model diagnosis
+```{r}
+lmm<-lmm_run1
+#resid vs fitted values (homogeneity of variances & linear relationship)
+plot(lmm)
+check_model(lmm)
+check_homogeneity(lmm)
+#qqplot (normal distribution of error, standardized residuals)
+qqnorm(resid(lmm, type = "pearson"))
+qqline(resid(lmm, type = "pearson"))
+check_normality(lmm) 
+#Cook's distance values
+plot(cooks.distance(lmm),ylab="Cook distance values")
+#general model check
+check_singularity(lmm) 
+check_convergence(lmm) 
+```
+Model validation based on plots indicates only minor deviation, acceptable.
+
+d) Model output
+```{r}
+summary(lmm)
+tab_model(lmm,show.ci = F, show.se = TRUE, p.val = "kr")
+model_performance(lmm) #random factors shrinked to zero
+#significance of effects
+#F statistics to test fixed effects, Kenward-Roger Approximation is used, it performs well in the range of small sample settings ( see: Kenward MG, Roger JH. Small sample inference for fixed effects from restricted maximum likelihood. Biometrics. 1997 Sep;53(3):983-97. PMID: 9333350.)
+anova(lmm,ddf="Kenward-Roger")#no predictor can be droped
+emmeans(lmm, list(pairwise ~ site_type), adjust = "tukey")
+model2<-lmm
+```
+
+e) Plot
+```{r}
+fit<-lmm_run1
+mydf<-ggeffect(fit, c("site_type"))
+
+p_weight_st<-ggplot(mydf,mapping=aes(x = factor(x,level=c("refuge","edge","agriculture")), predicted))+#, colour = x
+geom_point(df_statistics,mapping=aes(x=factor(site_type,level=c("refuge","edge","agriculture")),y=weight_per_individual_mg,colour =site_type,alpha=site_type),size=2,position=position_jitter(h=0.0,w=0.1))+
+    geom_pointrange(aes(ymin = conf.low, ymax = conf.high))+
+  geom_signif(comparisons=list(c("refuge", "agriculture")), annotations="*",
+              y_position = 17, tip_length = 0, vjust=0.4) +
+     geom_signif(comparisons=list(c("edge", "agriculture")), annotations="*",
+              y_position = 18.4, tip_length = 0, vjust=0.4) +
+      labs(title="",x="Site type", y ="Dry weight per gammarid [mg]") +
+ scale_colour_manual(values=group.color,name="Site type",breaks = c("refuge","edge","agriculture"), labels=c("Refuge","Edge","Agriculture"))+
+    scale_fill_manual(values=group.color,name="Site type",breaks = c("refuge","edge","agriculture"), labels=c("Refuge","Edge","Agriculture"))+
+   scale_alpha_manual(values=c(0.4,0.7,0.5),name="Site type",breaks = c("refuge","edge","agriculture"), labels=c("Refuge","Edge","Agriculture"))+
+     scale_x_discrete(name="Site type",breaks = c("refuge","edge","agriculture"), labels=c("Refuge","Edge","Agriculture"))+
+   scale_y_continuous(breaks = c(0,5,10,15,20), labels=c(0,5,10,15,20),limits = c(0,20))+
+  theme_light()+
+  theme(  axis.title = element_text(colour = "grey30"),
+          axis.text = element_text(colour = "grey50"),
+          panel.border = element_blank(),
+          axis.line = element_line(colour = "grey80"),
+          panel.grid.major = element_line(colour = "grey90"),
+          legend.text = element_text(colour = "grey50"),
+          legend.title = element_text(colour = "grey30"),
+          legend.position="none")
+
+p_weight_st
+```
+
+
+### 1.2.2 Energy reserves
+
+#### 1.2.2.1 Statistics ~ Gammarus abundance
+a) Data exploration
+```{r}
+#Observe number of observation - Balanced design
+df_statistics %>% count(replicate,sort = TRUE)
+str(df_statistics)
+#outlier for response and continuous covariates
+MyVar <- c("lipidcontent_ug_mg")
+MyVar2 <- c("lipidcontent_ug_mg","site_type","fGFossarumAbundance")
+Mydotplot(df_statistics[,MyVar])
+#outlier
+#outlier_values <- boxplot.stats(df_statistics$weight_per_individual_mg)$out  # outlier values.
+boxplot(lipidcontent_ug_mg~site_type, data=df_statistics, main="outliers", boxwex=0.1)
+boxplot(lipidcontent_ug_mg~fGFossarumAbundance, data=df_statistics, main="outliers", boxwex=0.1)
+#variances
+p_vh<-beanplot(lipidcontent_ug_mg~site_type, data=df_statistics)
+leveneTest(lipidcontent_ug_mg~site_type, data=df_statistics)
+p_vh<-beanplot(lipidcontent_ug_mg~fGFossarumAbundance, data=df_statistics)
+leveneTest(lipidcontent_ug_mg~fGFossarumAbundance, data=df_statistics)
+#normal distribution
+hist(df_statistics$lipidcontent_ug_mg)
+byf.hist(lipidcontent_ug_mg~site_type, data=df_statistics)
+byf.hist(lipidcontent_ug_mg~fGFossarumAbundance, data=df_statistics)
+shapiro.test(df_statistics$lipidcontent_ug_mg)
+#Inspect for collinearity with multi-panel scatterplots (only covariates): 
+pairs(df_statistics[,MyVar2], lower.panel = panel.cor)
+#Inspect for collinearity with VIF, cut-off level in Zuur et al., 2013 VIF = 3
+corvif(df_statistics[ ,MyVar2]) # calculate variance inflation factors(VIFs) for fixed covariates
+```
+
+
+b) Model
+```{r}
+#linear mixed model
+lmm_run1 <- lmer(lipidcontent_ug_mg  ~ fGFossarumAbundance + (1|stream)+ (1|replicate), data = df_statistics,REML = T)
+Anova(lmm_run1)
+drop1(lmm_run1)
+#from help('isSingular'): "Complex mixed-effect models (i.e., those with a large number of variance-covariance parameters) frequently result in singular fits, i.e. estimated variance-covariance matrices with less than full rank. Less technically, this means that some "dimensions" of the variance-covariance matrix have been estimated as exactly zero." 
+#--> here the random factor stream. We decided to keep it anyway, because it is part of the study design and removing it has negligible influence on parameter estimates.
+```
+
+c) Model diagnosis
+```{r}
+lmm<-lmm_run1
+#resid vs fitted values (homogeneity of variances & linear relationship)
+plot(lmm)
+check_model(lmm)
+check_homogeneity(lmm) 
+#qqplot (normal distribution of error, standardized residuals)
+qqnorm(resid(lmm, type = "pearson"))
+qqline(resid(lmm, type = "pearson"))
+check_normality(lmm) 
+#Cook's distance values
+plot(cooks.distance(lmm),ylab="Cook distance values")
+#general model check
+check_singularity(lmm) 
+check_convergence(lmm)
+```
+Model validation based on plots indicates only minor deviation, acceptable.
+
+d) Model output TODO
+```{r}
+summary(lmm)
+# create a nice output
+tab_model(lmm,show.ci = F, show.se = TRUE, p.val = "kr")
+model_performance(lmm) # random factors describes some variance
+#significance of effects
+#F statistics to test fixed effects, Kenward-Roger Approximation is used, it performs well in the range of small sample settings ( see: Kenward MG, Roger JH. Small sample inference for fixed effects from restricted maximum likelihood. Biometrics. 1997 Sep;53(3):983-97. PMID: 9333350.)
+anova(lmm,ddf="Kenward-Roger")# not significant
+#posthoc - more conservative --> used for main manuscript
+emmeans(lmm, list(pairwise ~ fGFossarumAbundance), adjust = "tukey")
+model3<-lmm
+```
+Result: We did not find evidence that the level of energy reserves differs across G.fossarum abundance (LMM, factor site type not significant at p = 0.115).
+
+e) Plot
+```{r}
+fit<-lmm
+mydf<-ggeffect(fit, c( "fGFossarumAbundance"))
+
+p_energy_gf<-ggplot(mydf,mapping=aes(x = x, predicted))+#, colour = x
+geom_point(df_statistics,mapping=aes(x=fGFossarumAbundance,y=lipidcontent_ug_mg,colour =fGFossarumAbundance),alpha=0.3,size=2,position=position_jitter(h=0.0,w=0.1))+
+   geom_pointrange(aes(ymin = conf.low, ymax = conf.high))+#) 
+      labs(title="",x=expression(paste("Abundance of" ,phantom(x), italic("G. fossarum"))), y ="Lipid content [µg/mg gammarid]") +
+  scale_x_discrete(name=expression(paste("Abundance of" ,phantom(x), italic("G. fossarum"))),breaks = c("low","high"), labels=c("Low (≤50%)", "High (≥80%)"))+
+  scale_fill_brewer(type = "seq", palette="Set1",name=expression(paste("Abundance of" ,phantom(x), italic("G. fossarum"))),breaks = c("low","high"), labels=c("Low (≤50%, n=4)", "High (≥80%, n=14)"))+
+  scale_colour_brewer(type = "seq", palette="Set1",name=expression(paste("Abundance of" ,phantom(x), italic("G. fossarum"))),breaks = c("low","high"), labels=c("Low (≤50%, n=4)", "High (≥80%, n=14)"))+
+  scale_y_continuous(breaks = c(0,50,100,150,200,250), labels=c(0,50,100,150,200,250),limits = c(0,250))+
+  theme_light()+
+  theme(  axis.title = element_text(colour = "grey30"),
+          axis.text = element_text(colour = "grey50"),
+          panel.border = element_blank(),
+          axis.line = element_line(colour = "grey80"),
+           axis.text.y = element_blank(),
+          axis.line.y = element_blank(),
+          panel.grid.major = element_line(colour = "grey90"),
+          legend.text = element_text(colour = "grey50"),
+          legend.title = element_text(colour = "grey30"),
+          legend.position="none")
+
+p_energy_gf
+```
+
+#### 1.2.2.2 Statistics ~ Site type
+b) Model
+```{r}
+#linear mixed model site type
+lmm_run1 <- lmer(lipidcontent_ug_mg  ~ site_type + (1|stream)+ (1|replicate), data = df_statistics,REML = T)
+Anova(lmm_run1)
+drop1(lmm_run1)
+```
+
+c) Model diagnosis
+```{r}
+lmm<-lmm_run1
+#resid vs fitted values (homogeneity of variances & linear relationship)
+plot(lmm)
+check_model(lmm)
+check_homogeneity(lmm)
+#qqplot (normal distribution of error, standardized residuals)
+qqnorm(resid(lmm, type = "pearson"))
+qqline(resid(lmm, type = "pearson"))
+check_normality(lmm) 
+#Cook's distance values
+plot(cooks.distance(lmm),ylab="Cook distance values")
+#general model check
+check_singularity(lmm) 
+check_convergence(lmm)
+```
+Model validation based on plots indicates only minor deviation, acceptable.
+
+d) Model output
+```{r}
+summary(lmm)
+tab_model(lmm,show.ci = F, show.se = TRUE,   p.val = "kr")
+model_performance(lmm) # random factors describes some variance
+#significance of effects
+#F statistics to test fixed effects, Kenward-Roger Approximation is used, it performs well in the range of small sample settings ( see: Kenward MG, Roger JH. Small sample inference for fixed effects from restricted maximum likelihood. Biometrics. 1997 Sep;53(3):983-97. PMID: 9333350.)
+anova(lmm,ddf="Kenward-Roger")#site_type is not significant
+#posthoc - more conservative --> used for main manuscript
+emmeans(lmm, list(pairwise ~ site_type), adjust = "tukey")
+model4<-lmm
+```
+Conclusion: We did not find evidence that the level of energy reserves differs across site type (LMM, factor site type not significant at p = 0.29).
+
+e) Plot
+```{r}
+fit<-lmm
+mydf<-ggeffect(fit, c("site_type"))
+
+p_energy_st<-ggplot(mydf,mapping=aes(x = factor(x,level=c("refuge","edge","agriculture")), predicted))+#, colour = x
+    
+geom_point(df_statistics,mapping=aes(x=factor(site_type,level=c("refuge","edge","agriculture")),y=lipidcontent_ug_mg,colour =site_type,alpha=site_type),size=2,position=position_jitter(h=0.0,w=0.1))+
+  geom_pointrange(aes(ymin = conf.low, ymax = conf.high))+#) 
+      labs(title="",x="Site type", y ="Lipid content [µg/mg gammarid]") +
+ scale_colour_manual(values=group.color,name="Site type",breaks = c("refuge","edge","agriculture"), labels=c("Refuge","Edge","Agriculture"))+
+    scale_fill_manual(values=group.color,name="Site type",breaks = c("refuge","edge","agriculture"), labels=c("Refuge","Edge","Agriculture"))+
+  scale_alpha_manual(values=c(0.4,0.7,0.5),name="Site type",breaks = c("refuge","edge","agriculture"))+
+     scale_x_discrete(name="Site type",breaks = c("refuge","edge","agriculture"), labels=c("Refuge","Edge","Agriculture"))+
+  scale_y_continuous(breaks = c(0,50,100,150,200,250), labels=c(0,50,100,150,200,250),limits = c(0,250))+
+  theme_light()+
+  theme(  axis.title = element_text(colour = "grey30"),
+          axis.text = element_text(colour = "grey50"),
+          panel.border = element_blank(),
+          axis.line = element_line(colour = "grey80"),
+          panel.grid.major = element_line(colour = "grey90"),
+          legend.text = element_text(colour = "grey50"),
+          legend.title = element_text(colour = "grey30"),
+          legend.position="none")
+p_energy_st
+```
+
+## 1.3 Run 2
+Run 2: Only G.fossarum. 0-5 organism replicates per sampling site, according to the availability of G.fossarum. At some sampling sites (e.g. Krops_down, Russ_down) G.fossarum does not occur. Therefore, we have less replicates for the agricultural site type.
+
+```{r}
+#statistics for the following dataframe
+df_statistics<-df_run2
+str(df_statistics)
+#change variables to factor
+df_statistics$site_type  	<- factor(df_statistics$site_type)
+df_statistics$stream  	<- factor(df_statistics$stream)
+df_statistics <-unite(df_statistics,"replicate",c("stream","site_type"),sep="_",remove = F)
+df_statistics$replicate  	<- factor(df_statistics$replicate)
+```
+
+### 1.3.1 Weight
+a) Data exploration
+```{r}
+#Observe number of observation - Balanced design
+df_statistics %>% count(replicate,sort = TRUE)
+str(df_statistics)
+#outlier for response and continuous covariates
+MyVar <- c("weight_per_individual_mg")
+MyVar2 <- c("weight_per_individual_mg","site_type")
+Mydotplot(df_statistics[,MyVar])
+#outlier
+boxplot(weight_per_individual_mg~site_type, data=df_statistics, main="outliers", boxwex=0.1)
+#variances
+p_vh<-beanplot(weight_per_individual_mg~site_type, data=df_statistics)
+leveneTest(weight_per_individual_mg~site_type, data=df_statistics)
+#normal distribution
+hist(df_statistics$weight_per_individual_mg)
+byf.hist(weight_per_individual_mg~site_type, data=df_statistics)
+shapiro.test(df_statistics$weight_per_individual_mg)
+#Inspect for collinearity with multi-panel scatterplots (only covariates): 
+pairs(df_statistics[,MyVar2], lower.panel = panel.cor)
+#Inspect for collinearity with VIF, cut-off level in Zuur et al., 2013 VIF = 3
+corvif(df_statistics[ ,MyVar2]) 
+```
+Post model validation based on plots indicates only minor deviation, acceptable
+
+b) Model
+```{r}
+lmm_run2 <- lmer(weight_per_individual_mg ~ site_type +(1|stream)+(1|replicate), data = df_statistics,REML = T)
+Anova(lmm_run2)
+drop1(lmm_run2)
+```
+
+c) Model diagnosis
+```{r}
+lmm<-lmm_run2
+#resid vs fitted values (homogeneity of variances & linear relationship)
+plot(lmm)
+check_model(lmm)
+#qqplot (normal distribution of error, standardized residuals)
+qqnorm(resid(lmm, type = "pearson"))
+qqline(resid(lmm, type = "pearson"))
+#Cook's distance values
+plot(cooks.distance(lmm),ylab="Cook distance values")
+#general model check
+check_singularity(lmm) 
+check_convergence(lmm) 
+```
+Model is validated.
+
+d) Model output
+```{r}
+summary(lmm)
+# create a nice output
+tab_model(lmm,show.ci = F, show.se = TRUE,   p.val = "kr")
+model_performance(lmm) # random factors describes variance
+#significance of effects
+#F statistics to test fixed effects, Kenward-Roger Approximation is used, it performs well in the range of small sample settings ( see: Kenward MG, Roger JH. Small sample inference for fixed effects from restricted maximum likelihood. Biometrics. 1997 Sep;53(3):983-97. PMID: 9333350.)
+anova(lmm,ddf="Kenward-Roger")#site_type is not significant
+emmeans(lmm, list(pairwise ~ site_type), adjust = "tukey")
+model5<-lmm
+```
+
+e) Plot
+```{r}
+fit<-lmm_run2
+mydf<-ggeffect(fit, c("site_type"))
+
+p_weight_2<-ggplot(mydf,mapping=aes(x = factor(x,level=c("refuge","edge","agriculture")), predicted))+#, colour = x
+geom_point(df_statistics,mapping=aes(x=factor(site_type,level=c("refuge","edge","agriculture")),y=weight_per_individual_mg,colour =site_type,alpha=site_type),size=2,position=position_jitter(h=0.0,w=0.1))+
+    geom_pointrange(aes(ymin = conf.low, ymax = conf.high))+ 
+      labs(title="",x="Site type", y ="Dry weight per gammarid [mg]") +
+ scale_colour_manual(values=group.color,name="Site type",breaks = c("refuge","edge","agriculture"), labels=c("Refuge","Edge","Agriculture"))+
+    scale_fill_manual(values=group.color,name="Site type",breaks = c("refuge","edge","agriculture"), labels=c("Refuge","Edge","Agriculture"))+
+  scale_alpha_manual(values=c(0.4,0.7,0.5),name="Site type",breaks = c("refuge","edge","agriculture"), labels=c("Refuge","Edge","Agriculture"))+
+     scale_x_discrete(name="Site type",breaks = c("refuge","edge","agriculture"), labels=c("Refuge","Edge","Agriculture"))+
+  theme_light()+
+  theme(  axis.title = element_text(colour = "grey30"),
+          axis.text = element_text(colour = "grey50"),
+          panel.border = element_blank(),
+          axis.line = element_line(colour = "grey80"),
+          panel.grid.major = element_line(colour = "grey90"),
+          legend.text = element_text(colour = "grey50"),
+          legend.title = element_text(colour = "grey30"),
+          legend.position="none")
+p_weight_2
+```
+
+### 1.3.2 Energy reserves
+a) Data exploration
+```{r}
+#Observe number of observation - Balanced design
+df_statistics %>% count(replicate,sort = TRUE)
+#outlier
+boxplot(lipidcontent_ug_mg~site_type, data=df_statistics, main="outliers", boxwex=0.1)
+#variances
+p_vh<-beanplot(lipidcontent_ug_mg~site_type, data=df_statistics)
+leveneTest(lipidcontent_ug_mg~site_type, data=df_statistics)
+#normal distribution
+hist(df_statistics$weight_per_individual_mg)
+byf.hist(lipidcontent_ug_mg~site_type, data=df_statistics)
+shapiro.test(df_statistics$lipidcontent_ug_mg)
+#outlier for response and continuous covariates
+MyVar <- c("lipidcontent_ug_mg")
+MyVar2 <- c("lipidcontent_ug_mg","site_type")
+Mydotplot(df_statistics[,MyVar])
+#Inspect for collinearity with multi-panel scatterplots (only covariates): 
+pairs(df_statistics[,MyVar2], lower.panel = panel.cor)
+#Inspect for collinearity with VIF, cut-off level in Zuur et al., 2013 VIF = 3
+corvif(df_statistics[ ,MyVar2])
+```
+
+b) Model
+```{r}
+#linear mixed model
+lmm_run2 <- lmer(lipidcontent_ug_mg ~ site_type + (1|stream) +(1|replicate), data = df_statistics,REML = T)
+Anova(lmm_run2)
+drop1(lmm_run2)
+```
+
+c) Model diagnosis
+```{r}
+lmm<-lmm_run2
+#resid vs fitted values (homogeneity of variances & linear relationship)
+plot(lmm)
+check_model(lmm)
+check_homogeneity(lmm) 
+#qqplot (normal distribution of error, standardized residuals)
+qqnorm(resid(lmm, type = "pearson"))
+qqline(resid(lmm, type = "pearson"))
+check_normality(lmm) 
+#Cook's distance values
+plot(cooks.distance(lmm),ylab="Cook distance values")
+#general model check
+check_singularity(lmm) 
+check_convergence(lmm) 
+```
+Model is validated.
+
+d) Model output
+```{r}
+summary(lmm)
+tab_model(lmm,show.ci = F, show.se = TRUE,  p.val = "kr")
+model_performance(lmm) # random factors describes variance
+#significance of effects
+#F statistics to test fixed effects, Kenward-Roger Approximation is used, it performs well in the range of small sample settings ( see: Kenward MG, Roger JH. Small sample inference for fixed effects from restricted maximum likelihood. Biometrics. 1997 Sep;53(3):983-97. PMID: 9333350.)
+anova(lmm,ddf="Kenward-Roger")#site_type is not significant
+#posthoc - more conservative --> used for main manuscript
+emmeans(lmm, list(pairwise ~ site_type), adjust = "tukey")
+
+model6<-lmm
+```
+Random factor indicates that both for weight and energy reserves in the second run variate between streams.
+
+e) Plot
+```{r}
+fit<-lmm
+mydf<-ggeffect(fit, c("site_type"))
+
+p_energy_2<-ggplot(mydf,mapping=aes(x = factor(x,level=c("refuge","edge","agriculture")), predicted))+#, colour = x
+geom_point(df_statistics,mapping=aes(x=factor(site_type,level=c("refuge","edge","agriculture")),y=lipidcontent_ug_mg,colour =site_type,alpha=site_type),size=2,position=position_jitter(h=0.0,w=0.1))+
+ geom_pointrange(aes(ymin = conf.low, ymax = conf.high), alpha=1)+#,fatten = 4
+      labs(title="",x="Site type", y ="Lipid content [µg/mg gammarid]") +
+ scale_colour_manual(values=group.color,name="Site type",breaks = c("refuge","edge","agriculture"), labels=c("Refuge","Edge","Agriculture"))+
+    scale_fill_manual(values=group.color,name="Site type",breaks = c("refuge","edge","agriculture"), labels=c("Refuge","Edge","Agriculture"))+
+  scale_alpha_manual(values=c(0.4,0.7,0.5),name="Site type",breaks = c("refuge","edge","agriculture"), labels=c("Refuge","Edge","Agriculture"))+
+     scale_x_discrete(name="Site type",breaks = c("refuge","edge","agriculture"), labels=c("Refuge","Edge","Agriculture"))+
+  scale_y_continuous(breaks = c(0,50,100,150,200,250), labels=c(0,50,100,150,200,250),limits = c(0,250))+
+  theme_light()+
+  theme(  axis.title = element_text(colour = "grey30"),
+          axis.text = element_text(colour = "grey50"),
+          panel.border = element_blank(),
+          axis.line = element_line(colour = "grey80"),
+          panel.grid.major = element_line(colour = "grey90"),
+          legend.text = element_text(colour = "grey50"),
+          legend.title = element_text(colour = "grey30"),
+          legend.position="none")
+
+p_energy_2
+```
+
+## 1.4 Save Figures as tiff
+```{r}
+#save Figure 3
+dev.new()
+figure_energy<-ggarrange(p_energy_st,p_energy_gf+ rremove("ylab"),p_weight_st,p_weight_gf+rremove("ylab"),ncol=2,nrow = 2 ,widths = c(1,0.85),labels = c("A","B","C","D")) #labels = c("Gammarus sp","Gammarus fossarum"),label.x = c(0,-0.25)
+# ggsave(path = Outpath,filename = "20221121_Figure_4.svg",figure_energy, width=5, height=7, pointsize=15,dpi = 300)
+ragg::agg_tiff(paste(Outpath,"20230511_Figure_5.tiff",sep="/"), width = 85, height = 130, units = "mm", res = 300, scaling = 0.7)# width = 3.5, height = 5.5, units = "in"
+figure_energy
+dev.off()
+
+dev.new()
+figure_energy_SI<-ggarrange(p_energy_2,p_weight_2,ncol=2,nrow = 1, labels= c("A","B"))
+# ggsave(path = Outpath,filename = "20221121_Figure_SI_4.svg",figure_energy_SI, width=5, height=4, pointsize=15,dpi = 300)
+
+ragg::agg_tiff(paste(Outpath,"20230505_Figure_SI_4.tiff",sep="/"), width = 4.5, height = 3, units = "in", res = 300, scaling = 0.8)
+figure_energy_SI
+dev.off()
+
+```
+
+## 1.5 Inferential statistics gathered in one table (Table SI 16)
+```{r}
+#statistic output
+tab_model(model1,model2,model3,model4,model5,model6,show.ci = F, show.se = TRUE,  p.val = "kr")#
+```
+
+
+
+
+

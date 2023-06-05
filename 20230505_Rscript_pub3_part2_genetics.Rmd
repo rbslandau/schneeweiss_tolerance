@@ -1,0 +1,863 @@
+---
+title: "Population structure and insecticide response of Gammarus spp. in agricultural and upstream forested sites of small streams "
+author: "Schneeweiss A., Schreiner V.C., Liess M., Roeder N., Schwenk K., Schaefer R.B."
+date: "01 November 2022"
+output:
+  html_document:
+    figure_caption: yes
+    highlight: tango
+    number_sections: no 
+    toc: yes
+    toc_float: 
+         toc_collapsed: true
+    toc_depth: 4
+  pdf_document:
+    toc: yes
+    toc_float: 
+         toc_collapsed: true
+    toc_depth: '4'
+  word_document:
+    toc: yes
+editor_options:
+  chunk_output_type: console
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+R script written by Anke Schneeweiss
+
+Internally verified by Dr. Verena C. Schreiner
+
+Institute for Environmental Sciences
+RPTU Kaiserslautern-Landau 
+Fortstrasse 7  
+76829 Landau  
+GERMANY  
+Corresponding mail address: schneeweiss'@'uni-landau.de
+
+```{r, message=FALSE, warning=FALSE}
+#Required packages
+require(plyr) 
+require(dplyr) 
+require(tidyr) 
+require(stringr)
+require(data.table) 
+require(reshape)
+require(ggplot2) 
+require(EnvStats)
+require(ggpubr)
+require(scales)
+require(gridExtra)
+require(ggpmisc)
+require(reactable) 
+require(kableExtra) 
+require(qwraps2)
+require(doBy) 
+require(knitr)
+require(tidyselect)
+require(janitor)
+require(lme4)
+ require(beanplot)
+require(lmerTest) 
+require(car)
+require(performance)
+require(sjPlot)
+require(DHARMa)
+require(multcomp)
+require(emmeans)
+require(DAAG) 
+require(effects) 
+
+InstallPackages = F # change to T, if not installed yet
+
+if (InstallPackages) {
+  if (!requireNamespace("BiocManager", quietly=TRUE)) 
+    install.packages("BiocManager")
+  BiocManager::install("msa")
+  BiocManager::install("ggmsa")
+  
+  install.packages("adegenet")
+  install.packages("ape")
+  install.packages("ggtree")
+  install.packages("ggplot2")
+  install.packages("ips")
+  install.packages("bios2mds")
+  install.packages("haplotypes")
+  install.packages("pegas")
+  install.packages("phytools")
+  install.packages("stats")
+  install.packages("treeio")
+}
+
+library(phylotools)
+library(adegenet)
+library(ape)
+library(ggtree)
+library(stats)
+library(ips)
+library(msa)
+library(ggmsa)
+#devtools::install_github("emmanuelparadis/pegas/pegas")
+library(pegas)
+library(haplotypes)
+#library(devtools)
+#install_github("jgx65/hierfstat")
+library(hierfstat) 
+library(mmod) 
+library(ggeffects)
+library(reshape2)
+```
+
+```{r, message=FALSE, warning=FALSE}
+#########Set the working directory ##########
+path<-getwd()
+setwd(path)
+#Set data input path
+Inpath<-paste(path,"0_data_input" ,sep="/")
+#set analysis output path
+Outpath<-paste(path,"1_analysis_output" ,sep="/")
+```
+
+# 0. Some general definitions
+We define a fixed color scheme for the site types.
+```{r}
+#group color scheme for site_types in all plots
+group.color <- c("agriculture"= "peru", "edge" ="darkkhaki","refuge" = "darkgreen")
+```
+Rounds 0.5 up to 1.
+```{r}
+round2 <- function(x, digits = 0) {  
+  posneg <- sign(x)
+  z <- abs(x) * 10^digits
+  z <- z + 0.5
+  z <- trunc(z)
+  z <- z / 10^digits
+  z * posneg
+}
+```
+
+# 1. Gammarus fossarum
+
+## 1.1. Loading and preparing data
+We used A workflow with R: phylogenetic analyses and visualizations using mtDNA-Cytb sequences from Emine TOPARSLAN, Kemal KARABAG, Ugur BILGE ; June 2020; https://doi.org/10.1371/journal.pone.0243927
+
+We adapted this workflow to our needs.
+```{r ,include=FALSE}
+# read your previously aligned FASTA file
+nbin_long<-ape::read.dna(file = paste(Inpath,"20230505_data_part_2_genetics_CO1_Gammarus_fossarum.fasta",sep="/"), format = "fasta")#this file contains all CO1 sequences for G.fossarum with HQ>50%, aligned
+str(nbin_long)
+nbin_long
+image.DNAbin(nbin_long)
+```
+
+See Text SI 4: CO1 sequence data preparation, quality control and taxonomy assignment.
+To achieve a full alignment without gaps, we removed short sequences that would have been too length-limiting. For control, we also ran the whole analysis with the short alignment containing all sequences, which indicated the same main conclusion concerning our hypotheses.
+```{r}
+rows_to_remove <- c("Russbach-agriculture_15",
+                    "Otterbach-edge_60",
+                    "Kropsbach-edge_54",
+                    "Otterbach-edge_50",
+                    "Otterbach-edge_45",
+                    "Otterbach-agriculture_7",
+                    "Otterbach-agriculture_14",
+                    "Modenbach-refuge_66",
+                    "Modenbach-refuge_67",
+                    "Modenbach-refuge_70",
+                    "Modenbach-refuge_80",
+                    "Modenbach-agriculture_4",
+                    "Triefenbach-edge_54",
+                    "Triefenbach-refuge_68",
+                    "Russbach-agriculture_14",
+                    "Russbach-refuge_77")
+
+nbin_sel <- nbin_long[!rownames(nbin_long) %in% rows_to_remove, ]
+#image.DNAbin(nbin_sel)
+
+#cut (length 511 bp without gaps) - removing 16 sequences 
+nbin_cut<-nbin_sel[,68:578]#293 sequences - 511 bp
+#image.DNAbin(nbin_cut)
+str(nbin_cut)
+nbin_cut
+
+#for further analysis we use the cut alignment, it is the best compromise between length and number of sequences, but results have been checked with shorter and longer alignments with regard to our hypothesis all alignments result in similar results and conclusions
+# Save DNAbin object
+nbin<-nbin_cut
+```
+
+## 1.2. Alignment plot (not in manuscript)
+```{r}
+##########  PLOTTING OF ALIGNMENT-NJ-MSAPLOT   ############### 
+an<-as.alignment(nbin)  #converting DNAbin to alignment format
+nm<-as.matrix(an)       #converting alignment to matrix
+nbinmat<-as.matrix(labels(nbin)) #extraction of the sample names
+nbin
+class(nbin)
+dnbin<-dist.dna(nbin, model = "K80") #computing distance by ape package with K80 model derived by Kimura (1980)
+tree<-nj(dnbin)
+options(ignore.negative.edge=TRUE)
+ggt<-ggtree(tree, cex = 0.5, aes(color=branch.length))+
+scale_color_continuous(high='lightskyblue1',low='coral4')+
+geom_tiplab( size=2)+#align=TRUE,
+geom_treescale(y = - 5, color = "coral4", fontsize = 1)
+
+njmsaplot<-msaplot(ggt, nbin, offset = 0.004, width=2, height = 0.9, color = c(  rep("sienna1", 1), rep("lightskyblue1", 1), rep("lightgoldenrod1", 1),rep("darkolivegreen3",1,))) #rep("black", 1),
+njmsaplot
+```
+
+## 1.3. Extracting sequence and haplotype information
+```{r}
+#########   EXTRACTION SEQUENCE AND HAPLOTYPE INFORMATION    ###############
+nrow(nm)#confirmation of number of sequences 293
+ncol(nm)#confirmation of sequences length 511
+
+#collapse matrix
+sat2 <- NULL
+for (i in 1:nrow(nm)) {
+  sat2[i] <- paste(nm[i, ], collapse="")
+}
+
+sat2 <- toupper(sat2) #converts all letters to uppercase
+sat3 <- unique(sat2) #gives only unique sequences from all sequences
+sat3#gives complete sequences of the unique haplotypes (here 15 haplotypes).
+
+#calculate haplotype frequency in the all samples
+hfreq <- NULL
+for (i in 1:length(sat3)) {
+  hcount = 0
+  s3 <- sat3[i]
+  for (j in 1:length(sat2)) {
+    s2 <- sat2[j]
+    if (s3 == s2) {
+      hcount <- (hcount + 1) #counts the number of individuals with the same haplotype sequence. 
+      #print(paste(i, "yes", hcount))
+    }
+    #print(s2)
+  }
+  hname<-(paste("H",i, sep =""))
+  hfreq[i] <- hcount
+  #print(paste(hname, hcount, collapse = ""))
+}  
+
+#mutation points and the nucleotide substitutions
+len <- nchar(sat3[1]) #all have same length = 511
+cnt <- 1
+sat4 = list()
+for (j in 1:len) {
+  same <- TRUE
+  first <- substr(sat3[1], j, j)
+  for (i in 2:length(sat3)) {
+    ch1 <- substr(sat3[i], j, j)
+    if (first != ch1) {
+      str <- paste(j, first, ch1)
+      print(str)
+      same <- FALSE
+      break
+    }
+  }
+  if (!same) {
+    ss <- NULL
+    for (i in 1:length(sat3)) {
+      ss <- paste(ss, substr(sat3[i], j, j), sep="")
+    }
+    sat4[cnt] <- ss
+    cnt <- cnt + 1
+  }
+}
+
+
+#scan all columns and if all elements are the same do not copy
+len <- nchar(sat3[1]) #all have same length = 511
+cnt <- 1
+sat5 = list() 
+for (j in 1:len) { 
+  same <- TRUE
+  first <- substr(sat3[1], j, j)
+  scol <- first
+  for (i in 2:length(sat3)) {
+    ch1 <- substr(sat3[i], j, j)
+    scol <- paste(scol, ch1, sep="")
+    if (first != ch1) {
+      str <- paste(j, first, ch1)
+      #print(str)
+      same <- FALSE
+      #break
+    }
+  }
+  if (!same) {
+    scol <- paste("V_", cnt, " ", scol, sep="")
+    ss <- NULL
+    for (i in 1:length(sat3)) {
+      ss <- paste(ss, substr(sat3[i], j, j), sep="")
+    } 
+    sat5[cnt] <- ss
+    cnt <- cnt + 1
+  }
+}
+
+#matrix of variable sites (non contiguous fragment) 
+sat6 <- as.matrix(sat5)
+mat6 = matrix(nrow=nrow(sat6), ncol=nchar(sat6[1]))
+for (i in 1:nrow(mat6)) {
+  s <- as.vector(strsplit(as.character(sat5[i]), ""))
+  for (j in 1:ncol(mat6)) {
+    mat6[i, j] <- as.character(s[[1]][j])
+  }
+}
+
+#transpose matrix of variable sites and add haplotype names
+mat7 <- t(mat6) 
+hname<-paste("H", 1:nrow(mat7), sep = "")
+rownames(mat7)=hname
+
+#matrix of variable sites, show only differences, rest as points
+str4 <- NULL
+str4[1] <- paste(mat7[1, ], collapse="")
+for (i in 2:nrow(mat7)) {
+  tmp <- NULL
+  for (j in 1:ncol(mat7)) {
+    chr = "."
+    if(mat7[i, j] != mat7[1, j]) chr = mat7[i, j]
+    tmp <- paste(tmp, chr, sep="")
+  }
+  str4[i] <- paste(tmp, collapse="")
+}
+
+#add row and column names to matrix
+nchar(str4[1]) #confirmation of number of variable sites (here 18)
+mstr4<-as.matrix(str4)
+rownames(mstr4)<-hname
+colnames(mstr4)<-paste("sequences length","(", ncol(mat7), "base pairs", ")")
+#calculate the relative proportion of each haplotype
+pct<-round((as.matrix(hfreq)*100/colSums(as.matrix(hfreq))), 2)
+colnames(pct)<-c("pct")
+#merge all information to one dataframe
+cmstr4<-as.data.frame(cbind(mstr4, hfreq, pct))
+```
+
+
+Save the above information for Table SI 9
+```{r}
+str(cmstr4)
+df<-cmstr4
+names(df)[names(df) == "sequences length ( 18 base pairs )"] <- "Variable sites
+(non-contiguous fragment)"
+names(df)[names(df) == "hfreq"] <- "Frequency [absolut]"
+names(df)[names(df) == "pct"] <- "Frequency [%]"
+str(df)
+
+#order columns new, first June, then rest
+df<- df[, c(2,3,1)]
+#create nice table
+kable_out<-df%>%
+  kbl() %>% 
+  kable_classic(full_width = F) %>%
+  column_spec(1:3,background = "white") %>%
+  row_spec(0,bold = T,background = "white") %>%
+  column_spec(1,bold = T) 
+
+kable_out
+#save as html
+#readr::write_file(kable_out, paste(Outpath,"20221121_Table_SI_8.html",sep="/"))
+```
+
+## 1.4. Haplotype frequency per sampling site
+```{r}
+#############  HAPLOTYPES FREQUENCY  ################
+#extract haplotypes
+kn<-as.dna(nbin)
+kh<-haplotypes::haplotype(kn)
+ncb <- as.matrix(labels(nbin))
+
+#extract the different population names --> get the names of the sampling sites - name and number are separated by an underscore, 
+n2 <- NULL
+for (i in 1:nrow(ncb)) {
+  n2[i] <- strsplit(ncb[i], '_')[[1]][1] 
+}
+n2
+
+#group haplotypes by population
+hf<-grouping(kh, factors=n2)
+hf[["hapvec"]] <- NULL
+#extract haplotype frequency matrix per population
+dhf<-as.data.frame(hf$hapmat) 
+rownames(dhf)<-paste("H", 1:nrow(mat7), sep = "")
+dhf
+
+#restructure
+d <- dhf
+names <- rownames(d)
+rownames(d) <- NULL
+data <- cbind(names,d)
+#from wide to long format
+data<-gather(data,"sampling_site","Counts_hp",2:18)
+df_hp<-reshape2::dcast(data,sampling_site~names,value.var = "Counts_hp")
+```
+
+
+## 1.5. Calculate haplotype and nucleotide diversity
+```{r}
+############  HAPLOTYPE and NUCLEOTIDE DIVERSITY  ##################
+sampling_site<-c('Russbach-refuge','Otterbach-refuge','Hainbach-refuge','Modenbach-refuge',
+                 'Triefenbach-refuge','Kropsbach-refuge','Russbach-edge','Otterbach-edge',
+                 'Hainbach-edge','Modenbach-edge','Triefenbach-edge','Kropsbach-edge',
+                 'Russbach-agriculture','Otterbach-agriculture','Hainbach-agriculture',
+                 'Modenbach-agriculture','Triefenbach-agriculture') 
+
+
+hapDiv <- numeric(length(sampling_site))
+nucDiv <- numeric(length(sampling_site))
+
+for (i in 1:length(sampling_site)) {
+  row_index <- grep(sampling_site[i], rownames(nbin))
+  hapDiv[i] <- hap.div(nbin[row_index, ], variance = FALSE)
+  nucDiv[i] <- nuc.div(nbin[row_index, ], variance = FALSE)
+}
+
+#merge the sets
+df_pop_div<-data.frame(sampling_site,hapDiv,nucDiv)
+df_pop_div<-separate(df_pop_div,sampling_site,into = c("stream","site_type"),sep="-",remove = F)
+```
+
+### 1.5.1. Statistics
+#### 1.5.1.1. Haplotype diversity
+```{r}
+#statistics for the following data frame
+df_statistics<-df_pop_div[,1:4]
+names(df_statistics)[names(df_statistics)=="hapDiv"]<-"response_variable"
+str(df_statistics)
+#change variables to factor
+df_statistics$site_type  	<- factor(df_statistics$site_type) 
+df_statistics$stream  	<- factor(df_statistics$stream)
+```
+
+a) Data exploration
+```{r}
+#control for potential outlier
+outlier_values <- boxplot.stats(df_statistics$response_variable)$out
+boxplot(df_statistics$response_variable, main="outliers", boxwex=0.1)
+mtext(paste("Outliers: ", paste(outlier_values, collapse=", ")), cex=0.6)
+#variance homogeneity
+p_vh<-beanplot(response_variable~site_type, data=df_statistics)
+leveneTest(response_variable~site_type, data=df_statistics)
+#normal distribution
+hist(df_statistics$response_variable)
+shapiro.test(df_statistics$response_variable)
+```
+Data are reasonably normally distributed, variances homogenize and there are no problematic outliers.
+
+b) Model
+```{r}
+#linear mixed model
+lmm_resp <- lmer(response_variable ~ site_type + (1|stream), data = df_statistics,REML = T)
+lmm<-lmm_resp
+```
+
+c) Model diagnosis
+```{r}
+#resid vs fitted values (homogeneity of variances & linear relationship)
+plot(lmm)#ok
+check_model(lmm)
+check_homogeneity(lmm) #ok
+#qqplot (normal distribution of error, standardized residuals)
+qqnorm(resid(lmm, type = "pearson"))
+qqline(resid(lmm, type = "pearson"))#ok
+check_normality(lmm) #ok
+#Cook's distance values
+plot(cooks.distance(lmm),ylab="Cook distance values")
+#general model check
+check_singularity(lmm) #ok
+check_convergence(lmm) #ok
+```
+Model is valid.
+
+d) Model output
+```{r}
+summary(lmm)
+tab_model(lmm,show.ci = F, show.se = TRUE,   p.val = "kr")
+model_performance(lmm) 
+#significance of effects
+#F statistics to test fixed effects, Kenward-Roger Approximation is used, it performs well in the range of small sample settings ( see: Kenward MG, Roger JH. Small sample inference for fixed effects from restricted maximum likelihood. Biometrics. 1997 Sep;53(3):983-97. PMID: 9333350.)
+anova(lmm,ddf="Kenward-Roger")
+model1<-lmm
+```
+Result: The level of haplotype diversity is similar across site types (LMM, p=0.4).
+
+e) Figure Haplotype diversity
+```{r}
+fit<-lmm
+mydf<-ggeffect(fit, c( "site_type"))
+
+#plot per site_type
+fig_hapDIV <- ggplot(mydf,mapping=aes(x = factor(x,level=c("refuge","edge","agriculture")), predicted))+
+geom_point(df_statistics,mapping=aes(x=factor(site_type,level=c("refuge","edge","agriculture")),y= response_variable,colour =site_type,alpha=site_type),size=2,position=position_jitter(h=0.0,w=0.1))+
+    geom_pointrange(aes(ymin = conf.low, ymax = conf.high))+
+ geom_line(df_statistics,mapping=aes(x=factor(site_type,level=c("refuge","edge","agriculture")),y= response_variable,group=stream), size=1.1, alpha=0.05)+
+      labs(title="",x="Site type", y = "Haplotype diversity") +
+        scale_y_continuous(breaks = c(0,0.5,1,1), limits = c(-0.00005,1)) +
+     scale_colour_manual(values=group.color,name="Site type",breaks = c("refuge","edge","agriculture"), labels=c("Refuge","Edge","Agriculture"))+
+    scale_fill_manual(values=group.color,name="Site type",breaks = c("refuge","edge","agriculture"), labels=c("Refuge","Edge","Agriculture"))+
+  scale_alpha_manual(values=c(0.4,0.7,0.5),name="Site type",breaks = c("refuge","edge","agriculture"), labels=c("Refuge","Edge","Agriculture"))+
+     scale_x_discrete(name="Site type",breaks = c("refuge","edge","agriculture"), labels=c("Refuge","Edge","Agriculture"))+
+   theme_light()+
+  theme(  #aspect.ratio = 1,
+          axis.title = element_text(colour = "grey30"),
+          axis.text = element_text(colour = "grey50"),
+          panel.border = element_blank(),
+          axis.line = element_line(colour = "grey80"),
+          panel.grid.major = element_line(colour = "grey90"),
+          legend.text = element_text(colour = "grey50"),
+          legend.title = element_text(colour = "grey30"),
+          legend.position="none")
+fig_hapDIV
+```
+
+#### 1.5.1.2. Nucleotide Diversity
+```{r}
+#statistics for the following data frame
+df_statistics<-df_pop_div[,c(1:3,5)]
+names(df_statistics)[names(df_statistics)=="nucDiv"]<-"response_variable"
+str(df_statistics)
+#change variables to factor
+df_statistics$site_type  	<- factor(df_statistics$site_type) 
+df_statistics$stream  	<- factor(df_statistics$stream)
+```
+
+a) Data exploration
+```{r}
+#outlier
+outlier_values <- boxplot.stats(df_statistics$response_variable)$out  # outlier values.
+boxplot(df_statistics$response_variable, main="outliers", boxwex=0.1)
+mtext(paste("Outliers: ", paste(outlier_values, collapse=", ")), cex=0.6)
+#variance homogeneity
+p_vh<-beanplot(response_variable~site_type, data=df_statistics)
+leveneTest(response_variable~site_type, data=df_statistics)
+#normal distribution
+hist(df_statistics$response_variable)
+shapiro.test(df_statistics$response_variable)
+```
+Data are reasonably normally distributed, variances homogenize and there are no problematic outliers.
+
+b) Model
+```{r}
+#linear mixed model
+lmm_resp <- lmer(response_variable ~ site_type + (1|stream), data = df_statistics,REML = T)
+lmm<-lmm_resp
+```
+
+c) Model diagnosis
+```{r}
+#resid vs fitted values (homogeneity of variances & linear relationship)
+plot(lmm)
+check_model(lmm)
+check_homogeneity(lmm) 
+#qqplot (normal distribution of error, standardized residuals)
+qqnorm(resid(lmm, type = "pearson"))
+qqline(resid(lmm, type = "pearson"))
+check_normality(lmm) 
+#Cook's distance values
+plot(cooks.distance(lmm),ylab="Cook distance values")
+#general model check
+check_singularity(lmm) 
+check_convergence(lmm)
+```
+Model is valid.
+
+d) Model output
+```{r}
+summary(lmm)
+# create a nice output
+tab_model(lmm,show.ci = F, show.se = TRUE,  string.se = "SE", p.val = "kr")
+model_performance(lmm) 
+#significance of effects
+#F statistics to test fixed effects, Kenward-Roger Approximation is used, it performs well in the range of small sample settings ( see: Kenward MG, Roger JH. Small sample inference for fixed effects from restricted maximum likelihood. Biometrics. 1997 Sep;53(3):983-97. PMID: 9333350.)
+anova(lmm,ddf="Kenward-Roger")
+model2<-lmm
+```
+Result: The level of diversity is similar across site types (LMM, p=0.5).
+
+e) Figure Nucleotide diversity
+```{r}
+fit<-lmm
+mydf<-ggeffect(fit, c( "site_type"))
+
+#plot TU sum per site_type
+fig_nucDIV <- ggplot(mydf,mapping=aes(x = factor(x,level=c("refuge","edge","agriculture")), predicted))+
+geom_point(df_statistics,mapping=aes(x=factor(site_type,level=c("refuge","edge","agriculture")),y= response_variable,colour =site_type,alpha=site_type),size=2,position=position_jitter(h=0.0,w=0.1))+
+    geom_pointrange(aes(ymin = conf.low, ymax = conf.high))+
+ geom_line(df_statistics,mapping=aes(x=factor(site_type,level=c("refuge","edge","agriculture")),y= response_variable,group=stream), size=1.1, alpha=0.05)+
+ # stat_summary(data = df_statistics,mapping =aes(x=site_type,y=response_variable) ,fun = median, geom = "point", size = 10,pch="-",stroke=5,show.legend = F)+
+      labs(title="",x="Site type", y = "Nucleotide diversity") +
+  # stat_summary(data = df_statistics,mapping =aes(x=site_type,y=response_variable),fun = mean, geom = "point",  size = 1, show.legend = F, colour="blue")+ #shape = 23,
+        scale_y_continuous(breaks = c(0,0.0025,0.005), limits = c(-0.00005,0.005)) +
+     scale_colour_manual(values=group.color,name="Site type",breaks = c("refuge","edge","agriculture"), labels=c("Refuge","Edge","Agriculture"))+
+    scale_fill_manual(values=group.color,name="Site type",breaks = c("refuge","edge","agriculture"), labels=c("Refuge","Edge","Agriculture"))+
+  scale_alpha_manual(values=c(0.4,0.7,0.5),name="Site type",breaks = c("refuge","edge","agriculture"), labels=c("Refuge","Edge","Agriculture"))+
+     scale_x_discrete(name="Site type",breaks = c("refuge","edge","agriculture"), labels=c("Refuge","Edge","Agriculture"))+
+   theme_light()+
+  theme( # aspect.ratio = 1,
+          axis.title = element_text(colour = "grey30"),
+          axis.text = element_text(colour = "grey50"),
+           #axis.ticks.x = element_line(colour = "grey90"),
+          panel.border = element_blank(),
+          axis.line = element_line(colour = "grey80"),
+          panel.grid.major = element_line(colour = "grey90"),
+          legend.text = element_text(colour = "grey50"),
+          legend.title = element_text(colour = "grey30"),
+          legend.position="none")
+fig_nucDIV
+```
+
+
+```{r}
+#save Figures
+dev.new()
+figure_DIV<-ggarrange(fig_hapDIV, fig_nucDIV,ncol = 2,  nrow = 1, align = "v", labels = c("A","B"))
+
+ragg::agg_tiff(paste(Outpath,"20230511_Figure_4.tiff",sep="/"), width = 85, height = 65, units = "mm", res = 300, scaling = 0.7)#width = 4, height = 3, units = "in", res = 600,
+figure_DIV
+dev.off()
+```
+
+```{r}
+#Inferential statistics gathered in one table (Table SI 11 and 12)
+tab_model(model1,model2,show.ci = F, show.se = TRUE,  p.val = "kr")#
+
+anova(model1,ddf="Kenward-Roger")
+anova(model2,ddf="Kenward-Roger")
+```
+
+
+## 1.6. Overview population genetic metrics -  Table SI 10
+```{r}
+# count how many haplotypes per sampling site
+data$Counts_hp_sum[data$Counts_hp>0] <- 1
+str(data)
+df_hp_ct<-aggregate(Counts_hp_sum~sampling_site,FUN="sum",data=data,na.action = na.omit,drop=F)#
+#insert a column with zeros, to manually insert the private haplotypes
+df_hp_ct$Counts_hp_ones <- 0 
+
+#create a vector with the sampling site names
+df_ct<-n2 %>% table() %>% as.data.frame()
+str(df_ct)
+colnames(df_ct)[1]<-"sampling_site"
+
+#join all tables with interesting values
+df<-full_join(df_ct,full_join(df_hp_ct,(full_join(df_pop_div,df_hp))))
+#renaming
+names(df)[names(df) == "Freq"] <- "n-hq>50%"
+names(df)[names(df) == "Counts_hp_sum"] <- "#H"
+names(df)[names(df) == "Counts_hp_ones"] <- "private H"
+names(df)[names(df) == "hapDiv"] <- "HDiv"
+names(df)[names(df) == "nucDiv"] <- "NucDiv"
+str(df)
+
+#order columns new, first June, then rest
+df<- df[, c(1,5,6,2:4,7:9,16:23,10:15)]
+df[,7:8]<-round2(df[,7:8],digits = 3)
+str(df)
+#calculate relative occurrence of the haplotypes
+df[,9:23]<-df[,9:23] / df[,4]*100 
+df[,9:23]<-round2(df[,9:23],digits = 0)
+
+#create nice table
+kable_out<-df%>%
+  kbl() %>% #align="lcccccccccccccccc"
+  kable_classic(full_width = F) %>%
+  column_spec(1:17,background = "white") %>%
+  row_spec(0,bold = T,background = "white") %>%
+  column_spec(1,bold = T) #%>%
+#  collapse_rows(columns = 1,valign = "top")
+kable_out
+#save as html
+readr::write_file(kable_out, paste(Outpath,"20221121_Table_SI_9.html",sep="/"))
+```
+
+## 1.7. Genetic differentiation
+### 1.7.1. Fst values - output as table and heatmap
+```{r}
+str(nbin)
+#change format of data
+wm<-DNAbin2genind(nbin[1:293, 1:511], n2)#row.names(nbin)
+wm2<-genind2hierfstat(wm)
+
+#calculate basic stats
+basic.stats(wm2,diploid = F)
+
+#calculate the genetic distance or Fst values
+BbDM2<-pairwise.neifst(wm2,diploid = F)
+
+#change to matrix format
+class(BbDM2)
+BbDMmat<-as.matrix(BbDM2)
+class(BbDMmat)
+
+#round values
+mat<-round2(BbDMmat,digits = 2)
+mat<-as.data.frame(mat)
+str(mat)
+#rename
+mat$Site <- rownames(mat)
+mat<-separate(mat,Site,into = c("Stream","Site_type"),sep="-")
+dim(mat)
+str(mat)
+row.names(mat) <- NULL
+mat<- mat[, c(18,19,1:17)]
+mat[,2]<-str_to_sentence(mat[,2])
+
+#result as table
+kable_out<-mat%>%
+  kbl() %>% 
+  kable_classic(full_width = F) %>%
+   column_spec(1,bold = T) %>%
+  add_header_above(c("Matrix"=1,"Site_type"=1,"Agriculture"=1,"Edge"=1, "Refuge"=1,"Edge"=1,"Refuge"=1,rep(c("Agriculture"=1,"Edge"=1, "Refuge"=1),4)),align ="c",background = "white") %>% 
+    add_header_above(c("Matrix"=1,"Stream"=1,"Hainbach"=3,"Kropsbach"=2, "Modenbach"=3,"Otterbach"=3,"Russbach"=3,"Triefenbach"=3),bold = T,align ="c",background = "white")
+kable_out
+#save as html
+#readr::write_file(kable_out, paste(Outpath,"20221121_Table_SI_13.html",sep="/"))
+
+# Result as heatmap
+#all NA's to zero
+BbDMmat[is.na(BbDMmat)]<-0
+BbDMmat[BbDMmat<0]<-0
+PDat<-melt(BbDMmat)
+dim(PDat)
+str(PDat)
+names(PDat)[1] <- c("Var1")
+names(PDat)[2] <- c("Var2")
+
+PDat$Var1<-as.character(PDat$Var1) 
+PDat$Var2<-as.character(PDat$Var2)
+str(PDat)
+#plot
+df_heatmap<-ggplot(data = PDat, aes(x=Var1, y=Var2, fill=value)) + 
+  geom_tile()+
+  labs(title="",x="Sampling site", y = "Sampling site",fill=expression( "Fixation index - F"[ST]))+ 
+  theme(axis.text.x = element_text(angle = 90, hjust = 1, vjust = 0.5))
+df_heatmap
+##save the heatmap
+# ggsave(path=Outpath,filename = "20221121_Figure_SI_3.tiff",df_heatmap, width=6.5, height=5, pointsize=15,dpi = 300)#,device=cairo_ps, fallback_resolution = 600)
+```
+### 1.7.2. Amova
+```{r}
+#AMOVA with pegas
+pops <-as.data.frame(n2)
+pops_2 <-pops %>%  separate(n2,c("stream","site_type"),sep="-")
+dm <- dist.dna(nbin, "N") # similar conclusion with 'K80' (default), result nicer to grasp with N 
+
+stream<-as.factor(pops_2$stream)
+site_type<-as.factor(pops_2$site_type)
+site<-as.factor(pops$n2)
+
+#AMOVA for group streams
+res <- amova(dm ~stream/site,nperm = 100)
+res
+res$varcomp
+sig2 <- setNames(res$varcomp$sigma2, rownames(res$varcomp))
+getPhi(sig2)
+#write.pegas.amova(res, file = paste(Outpath,"20221121_amova_stream.txt",sep="/"))
+
+#AMOVA for group site types
+res <- amova(dm ~site_type/site,nperm = 100)
+res
+res$varcomp
+sig2 <- setNames(res$varcomp$sigma2, rownames(res$varcomp))
+getPhi(sig2)
+#write.pegas.amova(res, file = paste(Outpath,"20221121_amova_site_type.txt",sep="/"))
+```
+
+## 1.8. Haplotype network - Group: Site type
+```{r}
+############## HAPLOTYPE NETWORK-GROUPS ##########################
+#To construct a haplotype network according to the groups, we assigned the group names of the samples according to the nbin object. 
+table(n2)
+n_new<-as.data.frame(n2)
+str(n_new)
+n_new <-separate(n_new,n2,into = c("stream","site_type"),sep="-",remove = F)
+rownames(nbin)
+ng<-nbin
+rownames(ng)<-str_to_sentence(n_new$site_type)#nmname
+
+#extract haplotypes from DNAbin object
+hg<-pegas::haplotype(ng, strict = FALSE, trailingGapsAsN = TRUE)
+hg
+hname<-paste("H", 1:nrow(hg), sep = "")
+rownames(hg)= paste(hname)
+
+#construct the haplotype network
+netg<-haploNet(hg, d = NULL, getProb = TRUE) 
+netg
+ind.hapg<-with(
+  utils::stack(setNames(attr(hg, "index"), rownames(hg))),
+  table(hap=ind, individuals=rownames(ng)[values]))
+
+#Group colors in the legend command - gbg argument below, colors were assigned according to the order of names in the ind.hapg object.
+#Color of samples was assigned using "gbg" argument in the plot () command.
+colnames(ind.hapg)
+gbg<-c(rep("peru"), rep("darkkhaki"), rep("darkgreen"))
+
+
+#save haplotype network as tiff
+dev.new()
+ragg::agg_tiff(paste(Outpath,"20230511_Figure_3.tiff",sep="/"), width = 4.5, height = 3.8, units = "in", res = 600, scaling = 0.7)# 
+par( mar= c(3,0.1,0.01,0.1),oma=c(1, 0, 0, 0))
+plot(netg, size=attr(netg, "freq")+10, bg = gbg, scale.ratio = 30, cex =0.7, labels=F, pie = ind.hapg, show.mutation=1, font=2)
+legend("bottom",inset=c(+0.01,-0.07),xpd=TRUE,colnames(ind.hapg), fill=c("peru","darkkhaki", "darkgreen"), cex=0.9, ncol=1, bty="n", x.intersp = 0.2,y.intersp = 0.7,title = "Site type", title.font = 2,title.adj = 0) 
+text(x = c(68,283,247,-63,-143,187,215,-20,47,17,-83,-40,57,23,-23), y=c(-80,-60,-20,25,47,60,120,-35,-28,17,-35,-115,30,60,50), paste0("H", 1:15),cex = 0.7,font =2)
+dev.off()
+```
+
+# 2. Extended discussion in SI: Gammarus pulex
+## 2.1. Loading and preparing data
+```{r}
+# read your previously aligned FASTA file
+nbin_pulex<-ape::read.dna(file = paste(Inpath,"20230505_data_part_2_genetics_CO1_Gammarus_pulex.fasta",sep="/"), format = "fasta")#this file contains all CO1 sequences for G.fossarum, aligned
+str(nbin_pulex)
+nbin_pulex
+image.DNAbin(nbin_pulex)
+```
+
+
+```{r}
+#cut best trade off length, removing 6 sequences
+nbin_mid<-nbin_pulex[,69:421] 
+nbin_mid<-nbin_mid[!rownames(nbin_mid)=="Russbach-agriculture_28"
+                   &!rownames(nbin_mid)=="Russbach-agriculture_16"
+                   &!rownames(nbin_mid)=="Russbach-agriculture_9"
+                   &!rownames(nbin_mid)=="Russbach-agriculture_30"
+                   &!rownames(nbin_mid)=="Otterbach-agriculture_8"
+                   &!rownames(nbin_mid)=="Kropsbach-agriculture_2",]
+```
+
+## 2.2. Haplotype frequency
+```{r}
+#############  HAPLOTYPES FREQUENCY  ################
+#library(haplotypes)
+kn_pulex<-as.dna(nbin_mid)
+kh_pulex<-haplotypes::haplotype(kn_pulex)
+ncb_pulex <- as.matrix(labels(nbin_mid))
+
+npulex <- NULL
+for (i in 1:nrow(ncb_pulex)) {
+  npulex[i] <- strsplit(ncb_pulex[i], '_')[[1]][1] #to get the names of the examples where the name and number are separated by an underscore
+}
+npulex
+
+hf_pulex<-grouping(kh_pulex, factors=npulex)
+hf_pulex[["hapvec"]] <- NULL
+dhf_pulex<-as.data.frame(hf_pulex$hapmat) #haplotype frequency matrix per population
+dhf_pulex
+#write.table(path=Outpath,dhf,file="dhf.txt", quote=FALSE, sep="\t")
+d_pulex <- dhf_pulex
+names <- rownames(d_pulex)
+rownames(d_pulex) <- NULL
+data_pulex <- cbind(names,d_pulex)
+str(data_pulex)
+head(data_pulex)
+#from wide to long format
+data_pulex<-gather(data_pulex,"sampling_site","Counts_hp",2:8)
+df_hp_pulex<-reshape2::dcast(data_pulex,sampling_site~names,value.var = "Counts_hp")
+df_hp_pulex
+```
+Only one single haplotype detected, no further analysis.

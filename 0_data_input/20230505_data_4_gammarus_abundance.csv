@@ -1,0 +1,19 @@
+method;sampling_month;sampling_year;stream;site_type;Gammarus_fossarum;Gammarus_pulex;Gammarus_roeselii;abundance
+Genetic marker-CO1;June;2019;Russbach;agriculture;5.555555556;8.333333333;86.11111111;low
+Genetic marker-CO1;June;2019;Russbach;Edge;100;0;0;high
+Genetic marker-CO1;June;2019;Russbach;Refuge;100;0;0;high
+Genetic marker-CO1;June;2019;Otterbach;agriculture;21.04591837;5.739795918;73.21428571;low
+Genetic marker-CO1;June;2019;Otterbach;Edge;100;0;0;high
+Genetic marker-CO1;June;2019;Otterbach;Refuge;100;0;0;high
+Genetic marker-CO1;June;2019;Kropsbach;agriculture;0;68.75;31.25;low
+Genetic marker-CO1;June;2019;Kropsbach;Edge;80;20;0;high
+Genetic marker-CO1;June;2019;Kropsbach;Refuge;100;0;0;high
+Genetic marker-CO1;June;2019;Hainbach;agriculture;100;0;0;high
+Genetic marker-CO1;June;2019;Hainbach;Edge;100;0;0;high
+Genetic marker-CO1;June;2019;Hainbach;Refuge;100;0;0;high
+Genetic marker-CO1;June;2019;Modenbach;agriculture;100;0;0;high
+Genetic marker-CO1;June;2019;Modenbach;Edge;95;5;0;high
+Genetic marker-CO1;June;2019;Modenbach;Refuge;100;0;0;high
+Genetic marker-CO1;June;2019;Triefenbach;agriculture;50;50;0;low
+Genetic marker-CO1;June;2019;Triefenbach;Edge;95;5;0;high
+Genetic marker-CO1;June;2019;Triefenbach;Refuge;100;0;0;high

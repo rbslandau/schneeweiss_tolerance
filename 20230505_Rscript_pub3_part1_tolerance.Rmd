@@ -1,0 +1,704 @@
+---
+title: "Population structure and insecticide response of Gammarus spp. in agricultural and upstream forested sites of small streams "
+author: "Schneeweiss A., Schreiner V.C., Liess M., Roeder N., Schwenk K., Schaefer R.B."
+date: "01 November 2022"
+output:
+  html_document:
+    figure_caption: yes
+    highlight: tango
+    number_sections: no 
+    toc: yes
+    toc_float: 
+         toc_collapsed: true
+    toc_depth: 4
+  pdf_document:
+    toc: yes
+    toc_float: 
+         toc_collapsed: true
+    toc_depth: '4'
+  word_document:
+    toc: yes
+editor_options:
+  chunk_output_type: console
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+R script written by Anke Schneeweiss
+
+Internally verified by Dr. Verena C. Schreiner
+
+Institute for Environmental Sciences
+RPTU Kaiserslautern-Landau 
+Fortstrasse 7  
+76829 Landau  
+GERMANY  
+Corresponding mail address: schneeweiss'@'uni-landau.de
+
+```{r, include=FALSE}
+#########Load packages and library files##################
+library(lattice)  
+library(lme4)
+require(dplyr)
+require(tidyr)
+#source(file = ".../HighstatLibV10.R") #download file "GLMGLMM_RCode.zip" on https://www.highstat.com/index.php/books2?view=article&id=21&catid=18 and read in "HighstatLibV10.R" from local source
+library(numDeriv)
+library(ggplot2)
+library(TMB)
+library(glmmTMB)
+library(bbmle)
+library(data.table)
+library(ggpubr)
+library(optimx) 
+library(effects)
+library(ggeffects)
+library(see) 
+library(emmeans) 
+library(multcomp)#
+library(car)
+library(sjPlot)
+library(snakecase)
+library(knitr)
+library(kableExtra) 
+library("performance")
+library(qqplotr)
+library(DHARMa)
+require(beanplot)
+require(patchwork)
+require(jtools)
+library(ggbreak)
+library(grid)
+```
+
+```{r, include=FALSE}
+#########Set the working directory ##########
+path<-getwd()
+#Set data input path
+Inpath<-paste(path,"0_data_input" ,sep="/")
+#set analysis output path
+Outpath<-paste(path,"1_analysis_output" ,sep="/")
+```
+
+# 0. Some general definitions
+We define a fixed color scheme for the site types.
+```{r}
+#group color scheme for site_types in all plots
+group.color <- c("agriculture"= "peru", "edge" ="darkkhaki" , "refuge" = "darkgreen")
+```
+Round 0.5 up to 1.
+```{r}
+round2 <- function(x, digits = 0) {  
+  posneg <- sign(x)
+  z <- abs(x) * 10^digits
+  z <- z + 0.5
+  z <- trunc(z)
+  z <- z / 10^digits
+  z * posneg
+}
+```
+
+# 1. Hypothesis 1: Pesticide tolerance.
+Given the regular pesticide exposure at agricultural sections in our study region, we hypothesised local adaptation processes in terms of higher pesticide tolerance of Gammarus spp. and that these propagate via gene flow to the edge habitats (hypothesis 1). 
+
+## 1.1 Load and prepare acute toxicity test data
+
+```{r}
+df1 <- read.csv(file=paste(Inpath,"20230505_data_part_1_tolerance.csv",sep="/"),header=TRUE, sep=";", na.strings =c("na","NA",""),stringsAsFactors = FALSE)
+df2<-read.csv(file=paste(Inpath,"20230505_data_4_gammarus_abundance.csv",sep="/"),header=TRUE, sep=";", na.strings ="na",stringsAsFactors = FALSE)
+```
+df1: data of acute toxicity test results for 18 sites (mortality and immobility of Gammarus spp. after 96h imidacloprid exposure)
+df2: data of relative Gammarus species abundances for the 18 sites
+
+
+Column definitions for df1:
+Column 1-3: "Site.id", "Stream" and "Site type" - sampling site characterization
+Column 4: "Date" Date of Gammarid sampling and test start
+Column 5: "Concentration" Nominal imidacloprid concentration used in the test in µg/L; 7-8 test concentrations (control included)
+Column 6: "Treatment" Treatment A-G,Z according to concentrations
+Column 7: "Replicate" Test vessel replicate, usually 4 per concentration and sampling site
+Column 8: "Individuals" The number of individuals per vessel at the start of the test
+Column 9: "Alive_96" Number of living individuals monitored 96h after test start (immobile organism are included)
+Column 11: "Immobile_96" Number of immobile individuals monitored 96h after test start; immobile refers to slight movements of antenna or legs allowed, but no swimming --> dead organisms are not included in the recorded response immobility --> but dead+immobile are summed up for model immobility
+Column 11: "Dead_96" Number of dead individuals monitored 96h after test start
+Column 12: "abundance" describes the relative abundance of Gammarus fossarum at the respective sampling site (high abundance: >=80% Gammarus fossarum; low: <=50% Gammarus fossarum)
+
+```{r}
+#########Prepare data############################
+df3<-df1
+df3$Site=tolower(df3$Site)
+str(df3)
+
+#Response variable is binary: dead or alive, immobile or mobile 
+df3$Proportion_dead_96<-df3$Dead_96/df3$Individuals # calculate mortality proportion
+
+#Explanatory variables
+#fixed factors
+df3$fSiteType  	<- factor(df3$Site) # in manuscript referred to as "site type", categorical, 3 levels - agriculture-edge-refuge
+df3$LogConcentration <- log10(df3$Concentration+3.5) # continuous, log-transformed as it has a large scale (+0.5*lowest non-zero concentration, to avoid infinite numbers)
+#random factors
+df3$fStream 		<- factor(df3$Stream) # categorical, 6 levels
+df3$fGFossarumAbundance	<- factor(df3$abundance)# categorical, 2 levels
+df3 <- unite(df3,"replicate_subunit",c("fStream","fSiteType","Treatment"),sep="",remove = F)#prepare unique identifier for true replicates to avoid pseudo-replication
+df3$fSubunit		<- factor(df3$replicate_subunit)
+```
+
+```{r}
+##Subsetting for different models
+df_gam<-df3
+
+#without outlier Hainbach_agriculture_Control_0_ug/L-all dead; since it does not change results, we keep the outlier
+#df_gam_outl<-df_gam[-c(15),]
+#df_gam<-df_gam %>% subset(!Stream=="Otterbach"&Treatment=="E")
+```
+
+## 1.2 Gammarus spp. 
+### 1.2.1 Mortality after 96h imidacloprid exposure - Predictor Site type
+#### 1.2.1.1 Statistics
+```{r, echo=FALSE}
+#statistics for the following dataframe
+df_statistics<-df_gam %>% dplyr::select(c("Alive_96","Dead_96","Proportion_dead_96","Individuals","LogConcentration","fSiteType","fStream","fGFossarumAbundance","fSubunit"))
+str(df_statistics)
+# remove NAs
+df_statistics<-df_statistics[!is.na(df_statistics$Proportion_dead_96),]
+unique(df_statistics$Proportion_dead_96)
+```
+
+a) Data exploration
+```{r}
+#outliers
+MyVar <- c("Alive_96","Dead_96","Proportion_dead_96","LogConcentration")
+Mydotplot(df_statistics[,MyVar]) 
+outlier_values <- boxplot.stats(df_statistics$Proportion_dead_96)$out  # outlier values.
+boxplot(df_statistics$Proportion_dead_96, main="outliers", boxwex=0.1)
+mtext(paste("Outliers: ", paste(outlier_values, collapse=", ")), cex=0.6)
+#variance homogeneity
+p_vh<-beanplot(Proportion_dead_96~fSiteType, data=df_statistics)
+leveneTest(Proportion_dead_96~fSiteType, data=df_statistics)
+#normal distribution
+hist(df_statistics$Proportion_dead_96)
+shapiro.test(df_statistics$Proportion_dead_96)
+#Inspect for collinearity with multi-panel scatterplots (only covariates): 
+MyVar1 <- c("LogConcentration","fGFossarumAbundance","fSiteType") # multi-panel scatterplots for fixed factors
+pairs(df_statistics[,MyVar1], 
+    upper.panel = panel.cor,
+  diag.panel  = panel.hist,
+  lower.panel = panel.smooth)
+#Inspect for collinearity with VIF, cut-off level in Zuur et al., 2013 VIF = 3
+corvif(df_statistics[ ,c("LogConcentration","fGFossarumAbundance","fSiteType")]) # calculate variance inflation factors(VIFs) for fixed covariates 
+```
+
+Binary data.
+Note that in the control of Hainbach-agriculture all 5 organism were dead --> rerun whole analysis without this observation does not change the results/conclusion, we keep it. 
+
+The random factor "fGFossarumAbundance" is correlated with the fixed factor "fSiteType" (correlation coefficient = -0.7). Since we are explicitly interested in the fixed covariate fSiteType, we decided to keep fSiteType in the model and to remove fGFossarumAbundance. This must be kept in mind for the interpretation of the model output. To illustrate our explanations within the discussion section of the manuscript, we constructed a second model with fGFossarumAbundance instead of fSiteType as fixed factor. 
+
+b) Modeling
+```{r echo=FALSE}
+#Executing the GLMM using the glmer function
+Full_model <- glmer(Proportion_dead_96 ~ LogConcentration*fSiteType+(1|fStream)+(1|fSubunit),weights = Individuals,
+            family = binomial, data = df_statistics,
+            glmerControl(optimizer = "optimx", calc.derivs = FALSE,
+                         optCtrl = list(method = "nlminb", starttests = FALSE, kkt = FALSE)))
+```
+
+b) Model selection
+Model selection is applied to the fixed structure only, since the random effects are part of the experimental design.
+Find optimal fixed structure:
+```{r}
+drop1(Full_model, test = 'Chisq')#Interaction is not significant, we remove it from the model.
+
+#same without interaction
+Reduced_model <- glmer(Proportion_dead_96 ~ LogConcentration+fSiteType+(1|fStream)+(1|fSubunit),weights = Individuals,
+            family = binomial, data = df_statistics,
+            glmerControl(optimizer = "optimx", calc.derivs = FALSE,
+                         optCtrl = list(method = "nlminb", starttests = FALSE, kkt = FALSE)))
+
+drop1(Reduced_model, test = 'Chisq')#fSiteType is significant, we keep it 
+```
+
+c) Model validation
+```{r}
+#model validation with the performance package
+check_model(Reduced_model) 
+model_performance(Reduced_model) 
+check_overdispersion(Reduced_model) 
+check_singularity(Reduced_model) 
+check_collinearity(Reduced_model) 
+```
+Model is valid.
+
+e) Model output
+```{r}
+summary(Reduced_model)
+# create a nice output
+tab_model(Reduced_model,show.ci = F, show.se = TRUE)#,  string.se = "SE") 
+
+#significance of fixed effects
+Anova(Reduced_model,type=2)#concentration and site_type are significant, no predictor can be droped
+drop1(Reduced_model)
+#posthoc - more conservative --> used for main manuscript
+emmeans(Reduced_model, list(pairwise ~ fSiteType), adjust = "tukey")
+#store in unique name
+Model1<-Reduced_model
+```
+
+#### 1.2.1.2 LC50
+```{r}
+#to calculate LC50--> mortality prob = 0.5 resolve model x1 = (logit(prob) - b0-b2x2-b3x3)/b1
+#logit(prob) = ln(prob/(1-prob))
+#Agriculture: x2=0 and x3=0
+#Edge: x2=1 and x3=0
+#Refuge: x2=0 and x3=1
+# note that log() is the same as ln(), natural logarithm, for base ten, please specify log10()
+function_calculate_LC50 = function(b0,b1,b2,b3,prob){
+x1 = (-b0-b2-b3+log(-prob/(prob-1)))/b1
+#x1 = (log(prob/(1-prob))-b0-b2-b3)/b1 #both lines are the same
+return(10^(x1)) # inverse of log10() for the concentration, given that it was log10() transformed
+}
+
+#access the estimated parameters and calculate predictor function
+ff<-fixef(Reduced_model)
+LC_all<-function_calculate_LC50(ff[[1]],ff[[2]],ff[[3]],ff[[4]],.5)
+LC_agriculture<-function_calculate_LC50(ff[[1]],ff[[2]],0,0,.5) #LC50 agriculture
+LC_edge<-function_calculate_LC50(ff[[1]],ff[[2]],ff[[3]],0,.5) #LC50 edge
+LC_refuge<-function_calculate_LC50(ff[[1]],ff[[2]],0,ff[[4]],.5) #LC50 refuge
+LC_agriculture # 224 µg/L
+LC_edge # 439 µg/L
+LC_refuge # 492 µg/L
+#x1 = concentration, b0 parameter of agriculture--> intercept, b1 parameter of Lconc, b2 edge, b3 refuge
+```
+
+#### 1.2.1.3 Plot
+Note: this plot does not take the uncertainty of the random effects parameters into account.
+```{r}
+#Predict new data (following Zuur et al., 2013)
+#create grid of covariate values and get dummy variables
+NewData <- expand.grid(fSiteType=c("agriculture","edge","refuge"),
+                        LogConcentration=seq(log10(2.3),3.4,length=1000))
+#figure out the model matrix X corresponding to the new data
+X <- model.matrix(~ LogConcentration + fSiteType, data = NewData)
+
+#access the estimated parameters and calculate predictor function
+ff<-fixef(Reduced_model)
+NewData$eta         <- X %*% ff
+
+#calculate the probability of mortality for the specified covariate values using the inverse of the logistic link function
+NewData$SuccessPred <- exp(NewData$eta) / (1 + exp(NewData$eta)) 
+
+#extract the variance-covariance matrix of the parameter V , compute XVX' to get the variance-covariance matrix of the predictions, then extract the diagonal of this matrix to get variances of predictions
+output<-vcov(Reduced_model) #use only for glmmTMB models,called "variance"
+NewData$VarPred <- diag(X %*% output %*% t(X))#unconditional variance
+#take the square-root to get standard errors of the predictions
+NewData$sePred  <- sqrt(NewData$VarPred)
+
+#obtain 95% confidence intervals on the scale of the response variable
+#for GLMMs, run the confidence interval boundaries (not the standard errors) through the inverse-link function
+NewData$seLow  <- exp(NewData$eta - 1.96 * NewData$sePred) / (1 + exp(NewData$eta - 1.96 * NewData$sePred))
+NewData$seHigh <- exp(NewData$eta + 1.96 * NewData$sePred) / (1 + exp(NewData$eta + 1.96 * NewData$sePred))
+
+#aggregate data as mean of all subunit replicates
+df_mean<-aggregate(list(df_statistics$Proportion_dead_96, df_statistics$Individuals), by=list(df_statistics$fSubunit, df_statistics$fSiteType,df_statistics$fStream,df_statistics$LogConcentration,df_statistics$fGFossarumAbundance), mean)
+str(df_mean)
+names(df_mean)<-c("fSubunit","fSiteType","fStream","LogConcentration","fGFossarumAbundance","Proportion_dead_96","Individuals")
+
+#use this one if you want to show the mean of all subunit replicates, to avoid overplotting
+df_statistics2  <-df_mean %>% mutate(result=NA, result=ifelse(fSiteType =="agriculture",LogConcentration-0.04,result), result=ifelse(fSiteType =="refuge",LogConcentration+0.04,result), result=ifelse(fSiteType =="edge",LogConcentration,result)  )
+
+p_G_sp_mortality <- 
+  ggplot(NewData, mapping=aes(x=LogConcentration, y=SuccessPred,group=fSiteType)) +
+  geom_point(df_statistics2,mapping = aes(x=result,y=Proportion_dead_96,colour=fSiteType, alpha = fSiteType),size=1.5)+ # position = position_dodge2(preserve = "single")  
+  geom_line(aes(colour=fSiteType),size=1.1, alpha=0.8) +
+    geom_ribbon(aes( ymin= seLow, ymax=seHigh, fill = fSiteType, alpha = fSiteType))+
+       scale_x_continuous(breaks = c(log10(1),log10(10),log10(100),log10(1000),log10(5000)), labels=c(1,10,100,1000,5000),limits = c(log10(1),log10(5000)),)+
+  scale_y_continuous(breaks = c(0,0.20,0.40,0.6,0.80,1), labels=c("0%","20%","40%","60%","80%","100%"),limits = c(0,1))+
+  scale_colour_manual(values=group.color,name="Site type",breaks = c("refuge","edge","agriculture"), labels=c("Refuge","Edge","Agriculture"))+
+    scale_fill_manual(values=group.color,name="Site type",breaks = c("refuge","edge","agriculture"), labels=c("Refuge","Edge","Agriculture"))+ 
+   scale_alpha_manual(values=c(0.2,0.4,0.3),name="Site type",breaks = c("refuge","edge","agriculture"), labels=c("Refuge","Edge","Agriculture"))+
+  annotation_logticks(sides = "b",colour = "grey50")+
+    labs(x = expression(paste("Imidacloprid concentration [µg/L]")), y = 'Mortality')+
+guides(fill = guide_legend(title.position = "top",title.hjust = 0.5),colour= guide_legend(title.position = "top",title.hjust = 0.5))+
+   theme_light()+
+  theme(  axis.title = element_text(colour = "grey30"),
+          axis.text = element_text(colour = "grey50"),
+           #axis.ticks.x = element_line(colour = "grey90"),
+          panel.border = element_blank(),
+          axis.line = element_line(colour = "grey80"),
+          panel.grid.major = element_line(colour = "grey90"),
+          legend.text = element_text(colour = "grey50"),
+          legend.title = element_text(colour = "grey30"),
+          legend.position="top")
+p_G_sp_mortality
+```
+
+### 1.2.2 Mortality after 96h imidacloprid exposure - Predictor G.fossarum Abundance
+#### 1.2.2.1 Statistics
+```{r, echo=FALSE}
+#statistics for the following dataframe
+df_statistics<-df_gam %>% dplyr::select(c("Proportion_dead_96","Individuals","LogConcentration","fSiteType","fStream","fGFossarumAbundance","fSubunit"))
+str(df_statistics)
+unique(df_statistics[,c("fStream","fSiteType","fGFossarumAbundance")])
+```
+
+a) Modelling
+```{r echo=FALSE}
+#Executing the GLMM using the glmer function
+Full_model <- glmer(Proportion_dead_96 ~ LogConcentration*fGFossarumAbundance+(1|fStream)+(1|fSubunit),weights = Individuals,
+            family = binomial, data = df_statistics,
+            glmerControl(optimizer = "optimx", calc.derivs = FALSE,
+                         optCtrl = list(method = "nlminb", starttests = FALSE, kkt = FALSE)))
+```
+
+b) Model selection
+Find optimal fixed structure:
+```{r}
+Anova(Full_model)
+drop1(Full_model)#Interaction is not significant, we remove it from the model.
+
+#same without interaction
+Reduced_model <- glmer(Proportion_dead_96 ~ LogConcentration+fGFossarumAbundance+(1|fStream)+(1|fSubunit),weights = Individuals,
+            family = binomial, data = df_statistics,
+            glmerControl(optimizer = "optimx", calc.derivs = FALSE,
+                         optCtrl = list(method = "nlminb", starttests = FALSE, kkt = FALSE)))
+Anova(Reduced_model)
+drop1(Reduced_model)#fGFossarumAbundance is significant, we keep it
+```
+
+c) Model validation
+```{r}
+#model validation with the performance package
+check_model(Reduced_model) 
+model_performance(Reduced_model) 
+check_overdispersion(Reduced_model) 
+check_singularity(Reduced_model) 
+check_collinearity(Reduced_model) 
+icc(Reduced_model)
+```
+Model is valid.
+
+e) Model output
+```{r}
+summary(Reduced_model)
+#output
+tab_model(Reduced_model,show.ci = F, show.se = TRUE)#,  string.se = "SE")
+
+#significance of fixed effects
+Anova(Reduced_model,type=2)#concentration and site_type are significant, no predictor can be droped
+drop1(Reduced_model)
+#posthoc - more conservative --> used for main manuscript
+emmeans(Reduced_model, list(pairwise ~ fGFossarumAbundance), adjust = "tukey")
+#store in unique name
+Model2<-Reduced_model
+```
+Results: The difference observed between site types may be explained by the differences in the relative abundance of Gammarus fossarum at the individual site types.
+
+```{r}
+#calculate LC50
+function_calculate_LC50 = function(b0,b1,b2,prob){
+x1 = (-b0-b2+log(-prob/(prob-1)))/b1
+#x1 = (log(prob/(1-prob))-b0-b2-b3)/b1 #both lines are the same
+return(10^(x1)) # inverse of log10() for the concentration, given that it was log10(x+1) transformed
+}
+
+#access the estimated parameters and calculate predictor function
+ff<-fixef(Reduced_model)
+LC_high<-function_calculate_LC50(ff[[1]],ff[[2]],0,.5) #LC50 high abundance
+LC_low<-function_calculate_LC50(ff[[1]],ff[[2]],ff[[3]],.5) #LC50 low abundance
+LC_high # 443 µg/L
+LC_low # 189 µg/L
+```
+
+#### 1.2.2.3 Plot
+```{r}
+#Predict new data
+#create grid of covariate values and get dummy variables
+NewData <- expand.grid(fGFossarumAbundance=c("high","low"),
+                        LogConcentration=seq(log10(2.3),3.4,length=1000))
+#figure out the model matrix X corresponding to the new data
+X <- model.matrix(~ LogConcentration + fGFossarumAbundance, data = NewData)
+
+#access the estimated parameters and calculate predictor function
+ff<-fixef(Reduced_model)
+NewData$eta         <- X %*% ff
+
+#calculate the probability of mortality for the specified covariate values using the inverse of the logistic link function
+NewData$SuccessPred <- exp(NewData$eta) / (1 + exp(NewData$eta)) # same as NewData$SuccessPred <-1 / (1 + exp(-NewData$eta)) ---> inverse: transforms a real number (usually the logarithm of the odds) to a value (usually probability p) in the interval [0,1]. The invlogit function is 1 / (1 + exp(-x)).
+
+#extract the variance-covariance matrix of the parameter V , compute XVX' to get the variance-covariance matrix of the predictions, then extract the diagonal of this matrix to get variances of predictions
+output<-vcov(Reduced_model) #use only for glmmTMB models,called "variance"
+NewData$VarPred <- diag(X %*% output %*% t(X))#unconditional variance
+#take the square-root to get standard deviations (errors) of the predictions
+NewData$sePred  <- sqrt(NewData$VarPred)
+
+#obtain 95% confidence intervals on the scale of the response variable
+#for GLMMs, run the confidence interval boundaries (not the standard errors) through the inverse-link function
+NewData$seLow  <- exp(NewData$eta - 1.96 * NewData$sePred) / (1 + exp(NewData$eta - 1.96 * NewData$sePred))
+NewData$seHigh <- exp(NewData$eta + 1.96 * NewData$sePred) / (1 + exp(NewData$eta + 1.96 * NewData$sePred))
+
+#aggregate data as mean of all subunit replicates
+df_mean<-aggregate(list(df_statistics$Proportion_dead_96, df_statistics$Individuals), by=list(df_statistics$fSubunit, df_statistics$fSiteType,df_statistics$fStream,df_statistics$LogConcentration,df_statistics$fGFossarumAbundance), mean)
+str(df_mean)
+names(df_mean)<-c("fSubunit","fSiteType","fStream","LogConcentration","fGFossarumAbundance","Proportion_dead_96","Individuals")
+
+#use this one if you want to show the mean of all subunit replicates, to avoid overplotting
+df_statistics2  <-df_mean %>% mutate(result=NA, result=ifelse(fGFossarumAbundance =="low",LogConcentration,result), result=ifelse(fGFossarumAbundance  =="high",LogConcentration+0.02,result))
+
+p_G_sp_mortality_agric <- 
+  ggplot(NewData, mapping=aes(x=LogConcentration, y=SuccessPred,group=fGFossarumAbundance)) +
+  geom_point(df_statistics2,mapping = aes(x=result,y=Proportion_dead_96,colour=fGFossarumAbundance),size=1.5, alpha = 0.3)+ # position = position_dodge2(preserve = "single")  
+  geom_line(aes(colour=fGFossarumAbundance),size=1.2, alpha=1) +
+    geom_ribbon(aes( ymin= seLow, ymax=seHigh, fill = fGFossarumAbundance), alpha = 0.2 )+
+     scale_x_continuous(breaks = c(log10(1),log10(10),log10(100),log10(1000),log10(5000)), labels=c(1,10,100,1000,5000),limits = c(log10(1),log10(5000)))+
+  scale_y_continuous(breaks = c(0,0.20,0.40,0.6,0.80,1), labels=c("0%","20%","40%","60%","80%","100%"),limits = c(0,1))+
+ scale_fill_brewer(type = "seq", palette="Set1",name=expression(paste("Abundance of" ,phantom(x), italic("Gammarus  fossarum"))),breaks = c("low","high"), labels=c("Low (≤50%, n=4)", "High (≥80%, n=14)"))+
+  scale_colour_brewer(type = "seq", palette="Set1",name=expression(paste("Abundance of" ,phantom(x), italic("Gammarus  fossarum"))),breaks = c("low","high"), labels=c("Low (≤50%, n=4)", "High (≥80%, n=14)"))+
+  annotation_logticks(sides = "b",colour = "grey50")+
+    labs(x = expression(paste("Imidacloprid concentration [µg/L]")), y = 'Mortality')+
+    guides(fill=guide_legend(title.position = "top",title.hjust = 0.5))+
+  #annotate("label", x = 0.7, y = 0, vjust = 1.3, label = "/ /",fill="white")+
+theme_light()+
+  theme(  axis.title = element_text(colour = "grey30"),
+          axis.text = element_text(colour = "grey50"),
+           #axis.ticks.x = element_line(colour = "grey90"),
+          panel.border = element_blank(),
+          axis.line = element_line(colour = "grey80"),
+           axis.text.y = element_blank(),
+          axis.line.y = element_blank(),
+          panel.grid.major = element_line(colour = "grey90"),
+          legend.text = element_text(colour = "grey50"),
+          legend.title = element_text(colour = "grey30"),
+          legend.position="top")
+p_G_sp_mortality_agric
+```
+
+### 1.2.3 Plot of abundances of Gammarus fossarum
+```{r}
+str(df2)
+df2$site_type=tolower(df2$site_type)
+df_abundance<-df2 %>% dplyr::select(c("stream","site_type","Gammarus_fossarum","Gammarus_pulex","Gammarus_roeselii"))
+
+#plot abundance
+fig_abundance <- 
+    ggplot(df_abundance, aes(x = factor(site_type,level=c("refuge","edge","agriculture")) , y = Gammarus_fossarum,fill=site_type)) + 
+        geom_point(mapping=aes(colour=site_type,alpha=site_type),size=3,position=position_jitterdodge())+#) 
+  geom_hline(yintercept=50, linetype="dashed", color = "steelblue")+
+  geom_hline(yintercept=80, linetype="dashed", color = "red",alpha=0.6)+
+   annotate(geom="text", x=0.85, y=83, label="↑ High", color="red",alpha=0.6)+
+ annotate(geom="text", x=0.85, y=48, label="↓ Low", color="steelblue")+
+         labs(title="",x="Site type", y = expression(paste("Relative abundance of" , italic(" Gammarus fossarum")))) +
+       scale_colour_manual(values=group.color,name="Site type",breaks = c("refuge","edge","agriculture"), labels=c("Refuge","Edge","Agriculture"))+
+    scale_fill_manual(values=group.color,name="Site type",breaks = c("refuge","edge","agriculture"), labels=c("Refuge","Edge","Agriculture"))+
+  scale_alpha_manual(values=c(0.4,0.75,0.6),name="Site type",breaks = c("refuge","edge","agriculture"), labels=c("Refuge","Edge","Agriculture"))+
+     scale_x_discrete(name="Site type",breaks = c("refuge","edge","agriculture"), labels=c("Refuge","Edge","Agriculture"))+
+  scale_y_continuous(breaks = c(0,20,40,60,80,100), labels=c("0%","20%","40%","60%","80%","100%"),limits = c(-1,102))+
+     theme_light()+
+  theme(axis.title = element_text(colour = "grey30"),
+          axis.text = element_text(colour = "grey50"),
+           axis.text.x = element_text(angle = 10, vjust = 0.8),
+          panel.border = element_blank(),
+          axis.line = element_line(colour = "grey80"),
+          panel.grid.major = element_line(colour = "grey90"),
+          legend.text = element_text(colour = "grey50"),
+          legend.title = element_text(colour = "grey30"),
+          legend.position="none")
+fig_abundance
+```
+
+
+### 1.2.4 Immobility after 96h imidacloprid exposure - Predictor Site type
+#### 1.2.4.1 Statistics
+a) Modelling
+```{r echo=FALSE}
+#statistics for the following dataframe
+df_statistics<-df_gam %>% dplyr::select(c("Dead_96","Individuals","LogConcentration","fSiteType","fStream","fGFossarumAbundance","Immobile_96","Alive_96","fSubunit"))
+str(df_statistics)
+```
+
+```{r}
+#note, per definition immobile means in our study, still alive, thus we add the dead individuals for an overall response
+#calculate response (dead+immobile)
+df_statistics$response_96<-df_statistics$Dead_96+df_statistics$Immobile_96 
+#calculate proportion of response
+df_statistics$Proportion_response_96<-df_statistics$response_96/df_statistics$Individuals # calculate response proportion
+
+# remove NAs
+df_statistics<-df_statistics[!is.na(df_statistics$response_96),]
+unique(df_statistics$response_96)
+```
+
+a) Data exploration
+```{r}
+#outlier for response and continuous covariates
+MyVar <- c("Proportion_response_96","LogConcentration")
+Mydotplot(df_statistics[,MyVar])
+outlier_values <- boxplot.stats(df_statistics$Proportion_response_96)$out  # outlier values.
+boxplot(df_statistics$Proportion_response_96, main="outliers", boxwex=0.1)
+mtext(paste("Outliers: ", paste(outlier_values, collapse=", ")), cex=0.6)
+#variance homogeneity
+p_vh<-beanplot(Proportion_response_96~fSiteType, data=df_statistics)
+leveneTest(Proportion_response_96~fSiteType, data=df_statistics)
+#normal distribution
+hist(df_statistics$Proportion_response_96)
+shapiro.test(df_statistics$Proportion_response_96)
+#Inspect for collinearity with multi-panel scatterplots (only covariates): 
+MyVar1 <- c("LogConcentration","fGFossarumAbundance","fSiteType") # multi-panel scatterplots
+pairs(df_statistics[,MyVar1], 
+    upper.panel = panel.cor,
+  diag.panel  = panel.hist,
+  lower.panel = panel.smooth)
+#Inspect for collinearity with VIF, cut-off level in Zuur et al., 2013 VIF = 3
+corvif(df_statistics[ ,c("LogConcentration","fGFossarumAbundance","fSiteType")]) # calculate variance inflation factors(VIFs) for fixed covariates
+```
+Data are not normally distributed,Binary data. Variances homogenize and there are no problematic outliers.
+
+b) Modeling
+```{r echo=FALSE}
+#Executing the GLMM using the glmer function
+Full_model <- glmer(Proportion_response_96 ~ LogConcentration*fSiteType+(1|fStream)+(1|fSubunit),weights = Individuals,
+            family = binomial, data = df_statistics,
+            glmerControl(optimizer = "optimx", calc.derivs = FALSE,
+                         optCtrl = list(method = "nlminb", starttests = FALSE, kkt = FALSE)))
+```
+
+b) Model selection
+```{r}
+Anova(Full_model)
+drop1(Full_model)#Interaction is not significant, we remove it from the model.
+
+Reduced_model <- glmer(Proportion_response_96 ~ LogConcentration+fSiteType+(1|fStream)+(1|fSubunit),weights = Individuals,
+            family = binomial, data = df_statistics,
+            glmerControl(optimizer = "optimx", calc.derivs = FALSE,
+                         optCtrl = list(method = "nlminb", starttests = FALSE, kkt = FALSE)))
+Anova(Reduced_model)
+drop1(Reduced_model)#fSiteType is not significant
+```
+
+c) Model validation
+```{r}
+#model validation with the performance package
+check_model(Reduced_model) # ok
+model_performance(Reduced_model) 
+check_overdispersion(Reduced_model) 
+check_singularity(Reduced_model) #singular - random factor stream variances not available, shrinked to zero
+check_collinearity(Reduced_model) 
+```
+
+e) Model output
+```{r}
+summary(Reduced_model)
+# create a nice output
+tab_model(Reduced_model,show.ci = F, show.se = TRUE)#,  string.se = "SE")
+
+#significance of fixed effects
+Anova(Reduced_model,type=2)#concentration is significant
+drop1(Reduced_model)
+#store in unique name
+Model3<-Reduced_model
+```
+Result: No significant difference between site types.
+
+#### 1.2.4.2 EC50
+```{r}
+#calculate EC50
+function_calculate_LC50 = function(b0,b1,b2,b3,prob){
+x1 = (-b0-b2-b3+log(-prob/(prob-1)))/b1
+#x1 = (log(prob/(1-prob))-b0-b2-b3)/b1 #both lines are the same
+return(10^(x1)) # inverse of log10() for the concentration, given that it was log10(x+1) transformed
+}
+
+#access the estimated parameters and calculate predictor function
+ff<-fixef(Reduced_model)
+LC_all<-function_calculate_LC50(ff[[1]],ff[[2]],ff[[3]],ff[[4]],.5)
+LC_agriculture<-function_calculate_LC50(ff[[1]],ff[[2]],0,0,.5) #LC50 agriculture
+LC_edge<-function_calculate_LC50(ff[[1]],ff[[2]],ff[[3]],0,.5) #LC50 edge
+LC_refuge<-function_calculate_LC50(ff[[1]],ff[[2]],0,ff[[4]],.5) #LC50 refuge
+LC_agriculture # 72 µg/L
+LC_edge # 87 µg/L
+LC_refuge # 77 µg/L
+```
+
+#### 1.2.1.3 Plot
+```{r}
+#Predict new data
+#create grid of covariate values and get dummy variables
+NewData <- expand.grid(fSiteType=c("agriculture","edge","refuge"),
+                        LogConcentration=seq(log10(2.3),3.4,length=1000))
+#figure out the model matrix X corresponding to the new data
+X <- model.matrix(~ LogConcentration + fSiteType, data = NewData)
+
+#access the estimated parameters and calculate predictor function
+ff<-fixef(Reduced_model)
+NewData$eta         <- X %*% ff
+
+#calculate the probability of mortality for the specified covariate values using the inverse of the logistic link function
+NewData$SuccessPred <- exp(NewData$eta) / (1 + exp(NewData$eta)) 
+
+#extract the variance-covariance matrix of the parameter V , compute XVX' to get the variance-covariance matrix of the predictions, then extract the diagonal of this matrix to get variances of predictions
+output<-vcov(Reduced_model) #use only for glmmTMB models,called "variance"
+NewData$VarPred <- diag(X %*% output %*% t(X))#unconditional variance
+#take the sqare-root to get standard deviations (errors) of the predictions
+NewData$sePred  <- sqrt(NewData$VarPred)
+
+#obtain 95% confidence intervals on the scale of the response variable
+#for GLMMs, run the confidence interval boundaries (not the standard errors) through the inverse-link function
+NewData$seLow  <- exp(NewData$eta - 1.96 * NewData$sePred) / (1 + exp(NewData$eta - 1.96 * NewData$sePred))
+NewData$seHigh <- exp(NewData$eta + 1.96 * NewData$sePred) / (1 + exp(NewData$eta + 1.96 * NewData$sePred))
+
+#aggregate data as mean of all subunit replicates
+df_mean<-aggregate(list(df_statistics$Proportion_response_96, df_statistics$Individuals), by=list(df_statistics$fSubunit, df_statistics$fSiteType,df_statistics$fStream,df_statistics$LogConcentration,df_statistics$fGFossarumAbundance), mean)
+str(df_mean)
+names(df_mean)<-c("fSubunit","fSiteType","fStream","LogConcentration","fGFossarumAbundance","Proportion_response_96","Individuals")
+
+#use this one if you want to show the mean of all subunit replicates, to avoid overplotting
+df_statistics2  <-df_mean %>% mutate(result=NA, result=ifelse(fSiteType =="agriculture",LogConcentration-0.04,result), result=ifelse(fSiteType =="refuge",LogConcentration+0.04,result), result=ifelse(fSiteType =="edge",LogConcentration,result)  )
+
+p_G_sp_immobility <- 
+  ggplot(NewData, mapping=aes(x=LogConcentration, y=SuccessPred,group=fSiteType)) +
+  geom_point(df_statistics2,mapping = aes(x=result,y=Proportion_response_96,colour=fSiteType, alpha = fSiteType),size=1.5)+ # position = position_dodge2(preserve = "single")  
+  geom_line(aes(colour=fSiteType),size=1.2, alpha=1) +
+    geom_ribbon(aes( ymin= seLow, ymax=seHigh, fill = fSiteType, alpha = fSiteType) )+
+     scale_x_continuous(breaks = c(log10(1),log10(10),log10(100),log10(1000),log10(5000)), labels=c(1,10,100,1000,5000),limits = c(log10(1),log10(5000)))+
+  scale_y_continuous(breaks = c(0,0.20,0.40,0.6,0.80,1), labels=c("0%","20%","40%","60%","80%","100%"),limits = c(0,1))+
+#  scale_colour_manual()+
+  scale_colour_manual(values=group.color,name="Site type",breaks = c("refuge","edge","agriculture"), labels=c("Refuge","Edge","Agriculture"))+
+    scale_fill_manual(values=group.color,name="Site type",breaks = c("refuge","edge","agriculture"), labels=c("Refuge","Edge","Agriculture"))+ 
+   scale_alpha_manual(values=c(0.2,0.4,0.3),name="Site type",breaks = c("refuge","edge","agriculture"), labels=c("Refuge","Edge","Agriculture"))+
+  annotation_logticks(sides = "b",colour = "grey50")+
+    labs(x = expression(paste("Imidacloprid concentration [µg/L]")), y = 'Immobility')+
+    theme_light()+
+  theme(  axis.title = element_text(colour = "grey30"),
+          axis.text = element_text(colour = "grey50"),
+           #axis.ticks.x = element_line(colour = "grey90"),
+          panel.border = element_blank(),
+          axis.line = element_line(colour = "grey80"),
+          panel.grid.major = element_line(colour = "grey90"),
+          legend.text = element_text(colour = "grey50"),
+          legend.title = element_text(colour = "grey30"),
+          legend.position="right")
+p_G_sp_immobility
+```
+
+## 1.3 Plot Tolerance results all together
+```{r}
+#save Figure 
+dev.new()
+figure_1<-ggarrange(nrow=1,p_G_sp_mortality,p_G_sp_mortality_agric+rremove("ylab"),fig_abundance,widths = c(1,0.85,0.6),  labels = c("A","B","C") )#, )#)align = "h",
+# ggsave(path = Outpath,filename = "20221121_Figure_1.eps",figure_1, width=9.5, height=4.5,pointsize=20,device=cairo_ps, fallback_resolution = 600)
+ragg::agg_tiff(paste(Outpath,"20230511_Figure_1.tiff",sep="/"), width = 160, height = 70, units = "mm", res = 300, scaling = 0.7)
+figure_1
+dev.off()
+
+dev.new()
+#ggsave(path = Outpath,filename = "20221121_Figure_SI_2.eps",p_G_sp_immobility, width=6, height=4, pointsize=15,device=cairo_ps, fallback_resolution = 600)
+ragg::agg_tiff(paste(Outpath,"20230505_Figure_SI_2.tiff",sep="/"), width = 5, height = 3.5, units = "in", res = 600, scaling = 0.8)
+p_G_sp_immobility
+dev.off()
+```
+
+
+```{r}
+tab_model(Model1,Model2,Model3,show.ci = F, show.se = TRUE)
+```
+
+
